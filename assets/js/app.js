@@ -191,10 +191,18 @@
             }
         }
 
-        // Event Listeners
-        cards.forEach((card, index) => {
-            card.addEventListener('click', () => renderItem(index));
-        });
+        // Event Listeners (Delegation)
+        const grid = document.querySelector('.grid');
+        if (grid) {
+            grid.addEventListener('click', (e) => {
+                const card = e.target.closest('.card');
+                if (card) {
+                    const allCards = Array.from(document.querySelectorAll('.card'));
+                    const index = allCards.indexOf(card);
+                    if (index !== -1) renderItem(index);
+                }
+            });
+        }
 
         // Navigation
         lightbox.querySelector('.prev').addEventListener('click', (e) => {

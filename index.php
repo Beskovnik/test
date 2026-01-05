@@ -103,7 +103,7 @@ foreach ($grouped as $label => $items) {
         $id = (int)$item['id'];
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
         echo '<article class="card" data-id="' . $id . '" data-type="' . htmlspecialchars($item['type'], ENT_QUOTES, 'UTF-8') . '" data-file="/' . htmlspecialchars($item['file_path'], ENT_QUOTES, 'UTF-8') . '">';
-        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy">';
+        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy" onerror="this.onerror=null;this.src=\'/assets/img/placeholder.svg\'">';
         echo $badge;
         echo '<div class="card-meta">';
         echo '<h3>' . $title . '</h3>';

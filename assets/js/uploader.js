@@ -16,19 +16,45 @@
         return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
     }
 
+    function formatTime(seconds) {
+        if (!isFinite(seconds) || seconds < 0) return '--';
+        if (seconds < 60) return `${Math.round(seconds)}s`;
+        const m = Math.floor(seconds / 60);
+        const s = Math.round(seconds % 60);
+        return `${m}m ${s}s`;
+    }
+
     function uploadFile(file) {
         const item = document.createElement('div');
-        item.className = 'upload-item';
+        item.className = 'upload-item card';
         item.innerHTML = `
-            <div><strong>${file.name}</strong></div>
-            <div class="progress"><span></span></div>
-            <div class="meta">0% · 0 KB/s · ETA --</div>
+            <div class="file-info">
+                <div class="file-icon">📄</div>
+                <div class="file-details">
+                    <div class="file-name"><strong>${file.name}</strong></div>
+                    <div class="file-meta">${formatBytes(file.size)}</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar"><div class="fill"></div></div>
+                <div class="progress-text">
+                    <span class="percent">0%</span>
+                    <span class="speed">0 KB/s</span>
+                    <span class="eta">ETA --</span>
+                </div>
+            </div>
+            <div class="status-icon">⏳</div>
         `;
         list.appendChild(item);
 
-        const progressBar = item.querySelector('.progress span');
-        const meta = item.querySelector('.meta');
+        const fill = item.querySelector('.fill');
+        const percentEl = item.querySelector('.percent');
+        const speedEl = item.querySelector('.speed');
+        const etaEl = item.querySelector('.eta');
+        const statusIcon = item.querySelector('.status-icon');
         const startTime = performance.now();
+        let lastLoaded = 0;
+        let lastTime = startTime;
 
         const formData = new FormData();
         formData.append('csrf_token', csrfToken || '');
@@ -38,22 +64,66 @@
         xhr.open('POST', '/upload.php');
         xhr.upload.addEventListener('progress', (event) => {
             if (!event.lengthComputable) return;
-            const percent = Math.round((event.loaded / event.total) * 100);
-            progressBar.style.width = `${percent}%`;
-            const elapsed = (performance.now() - startTime) / 1000;
-            const speed = event.loaded / Math.max(elapsed, 0.1);
-            const remaining = event.total - event.loaded;
-            const eta = remaining / Math.max(speed, 1);
-            meta.textContent = `${percent}% · ${formatBytes(speed)}/s · ETA ${Math.round(eta)}s`;
+
+            const now = performance.now();
+            const loaded = event.loaded;
+            const total = event.total;
+            const percent = Math.round((loaded / total) * 100);
+
+            fill.style.width = `${percent}%`;
+            percentEl.textContent = `${percent}%`;
+
+            // Calculate speed (moving average could be better but simple diff is ok)
+            const timeDiff = (now - lastTime) / 1000;
+            if (timeDiff > 0.5) { // Update every 0.5s
+                const bytesDiff = loaded - lastLoaded;
+                const speed = bytesDiff / timeDiff;
+                speedEl.textContent = `${formatBytes(speed)}/s`;
+
+                const remaining = total - loaded;
+                const eta = remaining / Math.max(speed, 1);
+                etaEl.textContent = `ETA ${formatTime(eta)}`;
+
+                lastLoaded = loaded;
+                lastTime = now;
+            }
         });
+
         xhr.onload = () => {
             if (xhr.status === 200) {
-                meta.textContent = 'Končano';
+                try {
+                    const resp = JSON.parse(xhr.responseText);
+                    // Check if *this* file succeeded in the batch response?
+                    // The backend returns {results: [...]}.
+                    // Since we upload 1 by 1 here (files[] has 1 file), results[0] is ours.
+                    const result = resp.results?.[0];
+                    if (result && result.success) {
+                        statusIcon.textContent = '✅';
+                        item.classList.add('success');
+                        fill.style.background = 'var(--accent)';
+                    } else {
+                        throw new Error(result?.error || 'Unknown error');
+                    }
+                } catch (e) {
+                    statusIcon.textContent = '❌';
+                    item.classList.add('error');
+                    etaEl.textContent = e.message;
+                }
             } else {
-                meta.textContent = 'Napaka pri uploadu';
+                statusIcon.textContent = '❌';
                 item.classList.add('error');
             }
+            // Reset fields
+            speedEl.textContent = '';
+            // etaEl.textContent = '';
         };
+
+        xhr.onerror = () => {
+            statusIcon.textContent = '❌';
+            item.classList.add('error');
+            etaEl.textContent = 'Network Error';
+        };
+
         xhr.send(formData);
     }
 
