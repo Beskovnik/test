@@ -1,25 +1,24 @@
 <?php
 require __DIR__ . '/../includes/bootstrap.php';
-require __DIR__ . '/../includes/auth.php';
 
-header('Content-Type: application/json');
 $postId = (int)($_GET['post_id'] ?? 0);
-if ($postId <= 0) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid post']);
+if (!$postId) {
+    echo json_encode(['comments' => []]);
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT comments.*, users.username FROM comments LEFT JOIN users ON comments.user_id = users.id WHERE comments.post_id = :post AND comments.status = "visible" ORDER BY created_at ASC');
+$stmt = $pdo->prepare('SELECT comments.*, users.username as author FROM comments LEFT JOIN users ON comments.user_id = users.id WHERE post_id = :post ORDER BY created_at DESC');
 $stmt->execute([':post' => $postId]);
-$comments = [];
-foreach ($stmt->fetchAll() as $row) {
-    $comments[] = [
-        'id' => (int)$row['id'],
-        'author' => $row['username'] ?? 'Anon',
-        'body' => $row['body'],
-        'created_at' => (int)$row['created_at'],
+$comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$data = [];
+foreach ($comments as $c) {
+    $data[] = [
+        'id' => $c['id'],
+        'author' => htmlspecialchars($c['author'] ?? 'Anon', ENT_QUOTES, 'UTF-8'),
+        'body' => nl2br(htmlspecialchars($c['body'], ENT_QUOTES, 'UTF-8')),
+        'created_at' => $c['created_at']
     ];
 }
 
-echo json_encode(['comments' => $comments]);
+echo json_encode(['comments' => $data]);

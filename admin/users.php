@@ -54,16 +54,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($username && $password) {
             try {
-                $stmt = $pdo->prepare('INSERT INTO users (username, pass_hash, role, active, created_at) VALUES (:u, :p, :r, 1, :c)');
+                $stmt = $pdo->prepare('INSERT INTO users (username, pass_hash, role, active, created_at, email) VALUES (:u, :p, :r, 1, :c, :e)');
                 $stmt->execute([
                     ':u' => $username,
                     ':p' => password_hash($password, PASSWORD_DEFAULT),
                     ':r' => $role,
-                    ':c' => time()
+                    ':c' => time(),
+                    ':e' => ''
                 ]);
                 flash('success', 'Uporabnik dodan.');
             } catch (PDOException $e) {
-                flash('error', 'Uporabnik že obstaja.');
+                // Log the actual error for debugging, although it's likely a duplicate constraint.
+                error_log("Add user error: " . $e->getMessage());
+                flash('error', 'Uporabnik že obstaja ali napaka.');
             }
         }
     }
