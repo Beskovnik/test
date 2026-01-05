@@ -73,14 +73,6 @@ foreach ($posts as $post) {
 render_header('Galerija', $user);
 render_flash($flash ?? null);
 
-if (!empty($errors)) {
-    echo '<div class="notice error"><strong>Setup issue:</strong><ul>';
-    foreach ($errors as $error) {
-        echo '<li>' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</li>';
-    }
-    echo '</ul></div>';
-}
-
 $galleryData = [];
 foreach ($posts as $post) {
     $galleryData[] = [

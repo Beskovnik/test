@@ -4,15 +4,33 @@ declare(strict_types=1);
 
 function render_header(string $title, ?array $user, string $active = 'feed'): void
 {
+    global $pdo, $errors;
+    $accentColor = setting_get($pdo, 'accent_color', '#4b8bff');
+    $fontSize = setting_get($pdo, 'font_size', '16px');
+
     $csrf = htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8');
     $isAdmin = $user && $user['role'] === 'admin';
-    echo '<!DOCTYPE html><html lang="en"><head>';
+    echo '<!DOCTYPE html><html lang="sl"><head>';
     echo '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<meta name="csrf-token" content="' . $csrf . '">';
     echo '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>';
     echo '<link rel="stylesheet" href="/assets/css/app.css">';
+    echo '<style>:root { --accent: ' . htmlspecialchars($accentColor) . '; font-size: ' . htmlspecialchars($fontSize) . '; }</style>';
     echo '</head><body>';
+
+    // Error Toast
+    if (!empty($errors)) {
+        echo '<div class="error-toast" id="error-toast">';
+        echo '<div class="error-toast-header">Setup Issue <button onclick="document.getElementById(\'error-toast\').remove()">×</button></div>';
+        echo '<ul>';
+        foreach ($errors as $error) {
+            echo '<li>' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</li>';
+        }
+        echo '</ul></div>';
+    }
+
     echo '<div class="app">';
+    echo '<div class="mobile-overlay"></div>';
     echo '<aside class="sidebar">';
     echo '<div class="logo">immich<span>gallery</span></div>';
     echo '<nav class="nav">';
@@ -23,25 +41,26 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     echo nav_link('favorites', '/index.php?tab=favorites', 'Priljubljene');
     echo nav_link('upload', '/upload.php', 'Upload');
     if ($isAdmin) {
-        echo nav_link('admin', '/admin/index.php', 'Admin');
+        echo nav_link('settings', '/settings.php', 'Nastavitve');
     }
     echo '</nav>';
     echo '</aside>';
     echo '<main class="main">';
     echo '<header class="topbar">';
+    echo '<button class="mobile-menu-toggle" aria-label="Menu">☰</button>';
     echo '<form class="search" action="/index.php" method="get">';
-    echo '<input type="search" name="q" placeholder="Poišči svoje fotografije" value="' . htmlspecialchars($_GET['q'] ?? '', ENT_QUOTES, 'UTF-8') . '">';
+    echo '<input type="search" name="q" placeholder="Poišči..." value="' . htmlspecialchars($_GET['q'] ?? '', ENT_QUOTES, 'UTF-8') . '">';
     echo '</form>';
     echo '<div class="top-actions">';
+    echo '<button class="button icon-only" id="theme-toggle" aria-label="Toggle Theme">🌙</button>';
     echo '<a class="button" href="/upload.php">Naloži</a>';
     if ($user) {
         echo '<div class="user-menu">';
-        echo '<span>' . htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') . '</span>';
+        echo '<span class="user-name">' . htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') . '</span>';
         echo '<a href="/logout.php">Odjava</a>';
         echo '</div>';
     } else {
         echo '<a class="link" href="/login.php">Prijava</a>';
-        echo '<a class="link" href="/register.php">Registracija</a>';
     }
     echo '</div>';
     echo '</header>';
