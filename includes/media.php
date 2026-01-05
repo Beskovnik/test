@@ -37,9 +37,10 @@ function generate_image_thumb(string $source, string $target): bool
             }
             break;
         case IMAGETYPE_WEBP:
-            if (function_exists('imagecreatefromwebp')) {
-                $src = imagecreatefromwebp($source);
+            if (!function_exists('imagecreatefromwebp')) {
+                return false;
             }
+            $src = imagecreatefromwebp($source);
             break;
         default:
             return false;
