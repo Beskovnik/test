@@ -8,6 +8,10 @@ require __DIR__ . '/includes/layout.php';
 $user = require_login($pdo);
 $config = app_config();
 
+// Check PHP limits
+$maxUpload = ini_get('upload_max_filesize');
+$maxPost = ini_get('post_max_size');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $responses = [];
@@ -125,6 +129,7 @@ render_flash($flash ?? null);
     <div class="uploader" data-max="10">
         <div class="drop-zone">
             <p>Povlecite datoteke sem ali kliknite za izbiro (max 10)</p>
+            <p class="text-muted small">Server limits: Upload <?php echo $maxUpload; ?>, Post <?php echo $maxPost; ?>. App limit: 50GB.</p>
             <input type="file" name="files[]" multiple accept="image/*,video/*">
         </div>
         <div class="upload-list"></div>

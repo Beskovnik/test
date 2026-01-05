@@ -63,9 +63,23 @@ $pdo->exec(
         height INTEGER NULL,
         duration_sec INTEGER NULL,
         thumb_path TEXT NOT NULL,
+        views INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
     )'
 );
+
+// Add views column if missing (migration)
+$columns = $pdo->query("PRAGMA table_info(posts)")->fetchAll();
+$hasViews = false;
+foreach ($columns as $col) {
+    if ($col['name'] === 'views') {
+        $hasViews = true;
+        break;
+    }
+}
+if (!$hasViews) {
+    $pdo->exec('ALTER TABLE posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0');
+}
 $pdo->exec(
     'CREATE TABLE IF NOT EXISTS likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,10 +154,11 @@ function setting_set(PDO $pdo, string $key, ?string $value): void
 function app_config(): array
 {
     return [
-        'max_image_size' => 200 * 1024 * 1024,
-        'allowed_images' => ['image/jpeg', 'image/png', 'image/webp'],
-        'allowed_videos' => ['video/mp4', 'video/webm', 'video/quicktime'],
-        'blocked_exts' => ['php', 'phtml', 'phar', 'js', 'html', 'htm'],
+        // 50 GB limit
+        'max_image_size' => 50 * 1024 * 1024 * 1024,
+        'allowed_images' => ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+        'allowed_videos' => ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'],
+        'blocked_exts' => ['php', 'phtml', 'phar', 'js', 'html', 'htm', 'exe', 'sh'],
     ];
 }
 

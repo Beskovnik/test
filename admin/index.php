@@ -30,6 +30,14 @@ render_header('Admin Dashboard', $user, 'admin');
 render_flash($flash ?? null);
 ?>
 <div class="admin-page">
+    <h1>Nadzorna plošča</h1>
+
+    <div class="admin-nav" style="margin-bottom: 24px; display: flex; gap: 12px;">
+        <a class="button" href="/admin/users.php">Uporabniki</a>
+        <a class="button" href="/admin/posts.php">Objave</a>
+        <a class="button" href="/admin/settings.php">Nastavitve</a>
+    </div>
+
     <div class="stats">
         <div class="stat">Uporabniki <strong><?php echo $counts['users']; ?></strong></div>
         <div class="stat">Objave <strong><?php echo $counts['posts']; ?></strong></div>

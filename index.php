@@ -23,7 +23,9 @@ if ($search !== '') {
     $params[':q'] = '%' . $search . '%';
 }
 
-$sql = 'SELECT posts.*, users.username FROM posts LEFT JOIN users ON posts.user_id = users.id';
+$sql = 'SELECT posts.*, users.username,
+        (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) as like_count
+        FROM posts LEFT JOIN users ON posts.user_id = users.id';
 if ($where) {
     $sql .= ' WHERE ' . implode(' AND ', $where);
 }
@@ -80,6 +82,10 @@ foreach ($posts as $post) {
         'type' => $post['type'],
         'file' => '/' . $post['file_path'],
         'title' => $post['title'],
+        'username' => $post['username'] ?? 'Anon',
+        'created_at' => (int)$post['created_at'],
+        'views' => (int)$post['views'],
+        'likes' => (int)$post['like_count'],
     ];
 }
 
@@ -97,7 +103,7 @@ foreach ($grouped as $label => $items) {
         $id = (int)$item['id'];
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
         echo '<article class="card" data-id="' . $id . '" data-type="' . htmlspecialchars($item['type'], ENT_QUOTES, 'UTF-8') . '" data-file="/' . htmlspecialchars($item['file_path'], ENT_QUOTES, 'UTF-8') . '">';
-        echo '<img src="' . $thumb . '" alt="' . $title . '">';
+        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy">';
         echo $badge;
         echo '<div class="card-meta">';
         echo '<h3>' . $title . '</h3>';

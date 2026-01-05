@@ -34,35 +34,59 @@ render_flash($flash ?? null);
 ?>
 <div class="admin-page">
     <h1>Objave</h1>
-    <form class="filters" method="get">
-        <select name="type">
+    <form class="filters card" method="get" style="display: flex; gap: 10px; padding: 1rem; margin-bottom: 20px;">
+        <select name="type" style="padding: 10px;">
             <option value="">Vsi tipi</option>
             <option value="image" <?php echo $type === 'image' ? 'selected' : ''; ?>>Slike</option>
             <option value="video" <?php echo $type === 'video' ? 'selected' : ''; ?>>Video</option>
         </select>
-        <input type="text" name="author" placeholder="Avtor" value="<?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?>">
+        <input type="text" name="author" placeholder="Avtor" value="<?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?>" style="padding: 10px;">
         <button class="button" type="submit">Filter</button>
+        <a href="/admin/posts.php" class="button ghost">Počisti</a>
     </form>
-    <table>
-        <thead><tr><th>Thumb</th><th>Naslov</th><th>Tip</th><th>Avtor</th><th>Akcije</th></tr></thead>
-        <tbody>
-        <?php foreach ($posts as $post) : ?>
-            <tr>
-                <td><img class="thumb" src="/<?php echo htmlspecialchars($post['thumb_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="thumb"></td>
-                <td><?php echo htmlspecialchars($post['title'] ?: 'Brez naslova', ENT_QUOTES, 'UTF-8'); ?></td>
-                <td><?php echo htmlspecialchars($post['type'], ENT_QUOTES, 'UTF-8'); ?></td>
-                <td><?php echo htmlspecialchars($post['username'] ?? 'Anon', ENT_QUOTES, 'UTF-8'); ?></td>
-                <td>
-                    <form method="post" action="/api/post_delete.php" class="inline" onsubmit="return confirm('Delete post?');">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="post_id" value="<?php echo (int)$post['id']; ?>">
-                        <button class="button danger" type="submit">Delete</button>
-                    </form>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: var(--card); text-align: left;">
+                    <th style="padding: 10px;">Media</th>
+                    <th style="padding: 10px;">Podatki</th>
+                    <th style="padding: 10px;">Statistika</th>
+                    <th style="padding: 10px;">Akcije</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($posts as $post) : ?>
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 10px; width: 100px;">
+                        <img class="thumb" src="/<?php echo htmlspecialchars($post['thumb_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="thumb" style="width: 80px; height: 60px; object-fit: cover; border-radius: 4px;">
+                    </td>
+                    <td style="padding: 10px;">
+                        <div><strong><?php echo htmlspecialchars($post['title'] ?: 'Brez naslova', ENT_QUOTES, 'UTF-8'); ?></strong></div>
+                        <div style="color: var(--muted); font-size: 0.9em;">
+                            Avtor: <?php echo htmlspecialchars($post['username'] ?? 'Anon', ENT_QUOTES, 'UTF-8'); ?><br>
+                            Datum: <?php echo date('d.m.Y H:i', (int)$post['created_at']); ?><br>
+                            Velikost: <?php echo round($post['size_bytes'] / 1024 / 1024, 2); ?> MB
+                        </div>
+                    </td>
+                    <td style="padding: 10px;">
+                        Views: <?php echo (int)$post['views']; ?>
+                    </td>
+                    <td style="padding: 10px;">
+                        <div style="display: flex; gap: 5px;">
+                            <a href="/<?php echo htmlspecialchars($post['file_path']); ?>" target="_blank" class="button small ghost">View</a>
+                            <form method="post" action="/api/post_delete.php" class="inline" onsubmit="return confirm('Res izbrišem objavo?');">
+                                <?php echo csrf_field(); ?>
+                                <input type="hidden" name="post_id" value="<?php echo (int)$post['id']; ?>">
+                                <button class="button danger small" type="submit">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 </div>
 <?php
 render_footer();
