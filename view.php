@@ -1,4 +1,5 @@
 <?php
+// View page for single post
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/auth.php';
 require __DIR__ . '/includes/csrf.php';

@@ -264,7 +264,7 @@ a:hover {
     color: #fff;
     padding: 0.25rem 0.5rem;
     border-radius: 0.5rem;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     backdrop-filter: blur(4px);
 }
 
@@ -378,7 +378,7 @@ a:hover {
 
 .file-icon { font-size: 1.5rem; }
 .file-details { display: flex; flex-direction: column; font-size: 0.9rem; }
-.file-meta { color: var(--muted); font-size: 0.8rem; }
+.file-meta { color: var(--muted); font-size: 0.9rem; }
 
 .progress-container {
     flex: 1;
@@ -404,7 +404,7 @@ a:hover {
 .progress-text {
     display: flex;
     justify-content: space-between;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--muted);
 }
 
@@ -593,7 +593,7 @@ a:hover {
 
 .meta-info {
     color: var(--muted);
-    font-size: 0.875rem;
+    font-size: 1rem;
     margin-bottom: 1rem;
 }
 
@@ -606,7 +606,7 @@ a:hover {
     background: var(--bg);
     padding: 0.5rem 0.75rem;
     border-radius: 0.5rem;
-    font-size: 0.875rem;
+    font-size: 1rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -649,7 +649,7 @@ a:hover {
 }
 
 .comment-item {
-    font-size: 0.9rem;
+    font-size: 1rem;
     line-height: 1.4;
 }
 
@@ -667,13 +667,14 @@ a:hover {
 
 .comment-form textarea {
     flex: 1;
-    height: 2.5rem;
-    resize: none;
-    padding: 0.5rem;
+    min-height: 5rem;
+    resize: vertical;
+    padding: 0.75rem;
     border-radius: 0.5rem;
     border: 1px solid var(--border);
     background: var(--input-bg);
     color: var(--text);
+    font-size: 1rem;
 }
 
 .login-cta {
@@ -804,7 +805,7 @@ a:hover {
 .info-panel .meta {
     color: var(--muted);
     margin-bottom: 1.5rem;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .info-panel .actions {
