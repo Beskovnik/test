@@ -54,13 +54,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($username && $password) {
             try {
+                // Email defaults to NULL if not provided to allow multiple users without email
                 $stmt = $pdo->prepare('INSERT INTO users (username, pass_hash, role, active, created_at, email) VALUES (:u, :p, :r, 1, :c, :e)');
                 $stmt->execute([
                     ':u' => $username,
                     ':p' => password_hash($password, PASSWORD_DEFAULT),
                     ':r' => $role,
                     ':c' => time(),
-                    ':e' => ''
+                    ':e' => null
                 ]);
                 flash('success', 'Uporabnik dodan.');
             } catch (PDOException $e) {
@@ -94,17 +95,17 @@ render_flash($flash ?? null);
     <h1>Uporabniki</h1>
 
     <div class="actions-bar" style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
-        <form class="search-form" method="get" style="display: flex; gap: 10px;">
+        <form class="search-form form" method="get" style="display: flex; gap: 10px; align-items: center;">
             <input type="search" name="q" placeholder="Išči uporabnike..." value="<?php echo htmlspecialchars($search); ?>">
             <button class="button" type="submit">Išči</button>
         </form>
 
-        <form class="add-user-form card" method="post" style="padding: 1rem; display: flex; gap: 10px; align-items: center;">
+        <form class="add-user-form card form" method="post" style="padding: 1rem; display: flex; gap: 10px; align-items: center;">
             <?php echo csrf_field(); ?>
             <input type="hidden" name="action" value="add">
             <strong>Nov uporabnik:</strong>
-            <input type="text" name="username" placeholder="Username" required style="width: 120px;">
-            <input type="password" name="password" placeholder="Password" required style="width: 120px;">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
             <select name="role">
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
