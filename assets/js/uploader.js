@@ -1,19 +1,31 @@
 (function () {
-    const uploader = document.querySelector('.uploader');
-    if (!uploader) return;
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadList = document.getElementById('uploadList');
 
-    const dropZone = uploader.querySelector('.drop-zone');
-    const input = dropZone.querySelector('input[type="file"]');
-    const list = uploader.querySelector('.upload-list');
-    const maxFiles = parseInt(uploader.dataset.max || '10', 10);
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    // Config
+    const MAX_FILES = 10;
+    const MAX_SIZE_BYTES = 50 * 1024 * 1024 * 1024; // 50GB
 
+    // State
+    let activeUploads = 0;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+    // Initialize UI for device
+    function initUI() {
+        if (isMobile) {
+            // Mobile specific initial adjustments if needed
+            // CSS handles most of layout
+        }
+    }
+
+    // Format helpers
     function formatBytes(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
     }
 
     function formatTime(seconds) {
@@ -24,116 +36,206 @@
         return `${m}m ${s}s`;
     }
 
-    function uploadFile(file) {
+    function getFileIcon(type) {
+        if (type.startsWith('image/')) return '🖼️';
+        if (type.startsWith('video/')) return '🎬';
+        return '📄';
+    }
+
+    // Main Upload Logic
+    function createUploadItem(file) {
+        const id = 'file-' + Math.random().toString(36).substr(2, 9);
         const item = document.createElement('div');
-        item.className = 'upload-item card';
+        item.className = 'upload-item';
+        item.id = id;
+
+        const icon = getFileIcon(file.type);
+
         item.innerHTML = `
-            <div class="file-info">
-                <div class="file-icon">📄</div>
-                <div class="file-details">
-                    <div class="file-name"><strong>${file.name}</strong></div>
-                    <div class="file-meta">${formatBytes(file.size)}</div>
+            <div class="file-header">
+                <div class="file-info-main">
+                    <div class="file-type-icon">${icon}</div>
+                    <div class="file-details-text">
+                        <span class="file-name" title="${file.name}">${file.name}</span>
+                        <span class="file-size">${formatBytes(file.size)}</span>
+                    </div>
+                </div>
+                <div class="upload-status-badge">Čaka</div>
+            </div>
+
+            <div class="file-progress-wrapper">
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-stats">
+                    <span class="stats-percent">0%</span>
+                    <span class="stats-speed">-- MB/s</span>
+                    <span class="stats-eta">--</span>
                 </div>
             </div>
-            <div class="progress-container">
-                <div class="progress-bar"><div class="fill"></div></div>
-                <div class="progress-text">
-                    <span class="percent">0%</span>
-                    <span class="speed">0 KB/s</span>
-                    <span class="eta">ETA --</span>
-                </div>
-            </div>
-            <div class="status-icon">⏳</div>
+
+            <button class="progress-cancel-btn" title="Prekliči">✕</button>
         `;
-        list.appendChild(item);
 
-        const fill = item.querySelector('.fill');
-        const percentEl = item.querySelector('.percent');
-        const speedEl = item.querySelector('.speed');
-        const etaEl = item.querySelector('.eta');
-        const statusIcon = item.querySelector('.status-icon');
-        const startTime = performance.now();
-        let lastLoaded = 0;
-        let lastTime = startTime;
+        uploadList.prepend(item); // Add new files to top
 
-        const formData = new FormData();
-        formData.append('csrf_token', csrfToken || '');
-        formData.append('files[]', file);
+        return {
+            element: item,
+            file: file,
+            fill: item.querySelector('.progress-bar-fill'),
+            badge: item.querySelector('.upload-status-badge'),
+            percentEl: item.querySelector('.stats-percent'),
+            speedEl: item.querySelector('.stats-speed'),
+            etaEl: item.querySelector('.stats-eta'),
+            cancelBtn: item.querySelector('.progress-cancel-btn'),
+            startTime: 0,
+            lastLoaded: 0,
+            lastTime: 0,
+            xhr: null
+        };
+    }
+
+    function startUpload(uploadItem) {
+        const { file, element, fill, badge, percentEl, speedEl, etaEl, cancelBtn } = uploadItem;
+
+        // 1. Validate Size
+        if (file.size > MAX_SIZE_BYTES) {
+            markError(uploadItem, 'Prevelika datoteka (>50GB)');
+            return;
+        }
+
+        badge.textContent = 'Nalaganje';
+        element.classList.add('uploading');
 
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/upload.php');
-        xhr.upload.addEventListener('progress', (event) => {
-            if (!event.lengthComputable) return;
+        uploadItem.xhr = xhr;
 
-            const now = performance.now();
-            const loaded = event.loaded;
-            const total = event.total;
-            const percent = Math.round((loaded / total) * 100);
+        const formData = new FormData();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        formData.append('csrf_token', csrfToken || '');
+        formData.append('files[]', file); // Backend expects array
 
-            fill.style.width = `${percent}%`;
-            percentEl.textContent = `${percent}%`;
+        uploadItem.startTime = performance.now();
+        uploadItem.lastTime = uploadItem.startTime;
 
-            // Calculate speed (moving average could be better but simple diff is ok)
-            const timeDiff = (now - lastTime) / 1000;
-            if (timeDiff > 0.5) { // Update every 0.5s
-                const bytesDiff = loaded - lastLoaded;
-                const speed = bytesDiff / timeDiff;
-                speedEl.textContent = `${formatBytes(speed)}/s`;
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const now = performance.now();
+                const loaded = e.loaded;
+                const total = e.total;
+                const percent = Math.min(100, (loaded / total) * 100);
 
-                const remaining = total - loaded;
-                const eta = remaining / Math.max(speed, 1);
-                etaEl.textContent = `ETA ${formatTime(eta)}`;
+                fill.style.width = `${percent}%`;
+                percentEl.textContent = `${Math.round(percent)}%`;
 
-                lastLoaded = loaded;
-                lastTime = now;
+                // Update speed/eta every 500ms
+                const timeDiff = (now - uploadItem.lastTime) / 1000; // seconds
+                if (timeDiff >= 0.5 || percent === 100) {
+                    const bytesDiff = loaded - uploadItem.lastLoaded;
+                    const speedBytesPerSec = bytesDiff / timeDiff; // B/s
+
+                    // Display speed
+                    speedEl.textContent = `${formatBytes(speedBytesPerSec)}/s`;
+
+                    // ETA
+                    if (speedBytesPerSec > 0) {
+                        const remainingBytes = total - loaded;
+                        const etaSeconds = remainingBytes / speedBytesPerSec;
+                        etaEl.textContent = formatTime(etaSeconds);
+                    }
+
+                    uploadItem.lastLoaded = loaded;
+                    uploadItem.lastTime = now;
+                }
             }
-        });
+        };
 
         xhr.onload = () => {
-            if (xhr.status === 200) {
+            element.classList.remove('uploading');
+            if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     const resp = JSON.parse(xhr.responseText);
-                    // Check if *this* file succeeded in the batch response?
-                    // The backend returns {results: [...]}.
-                    // Since we upload 1 by 1 here (files[] has 1 file), results[0] is ours.
-                    const result = resp.results?.[0];
+                    const result = resp.results?.[0]; // We sent one file
+
                     if (result && result.success) {
-                        statusIcon.textContent = '✅';
-                        item.classList.add('success');
-                        fill.style.background = 'var(--accent)';
+                        markSuccess(uploadItem);
                     } else {
-                        throw new Error(result?.error || 'Unknown error');
+                        markError(uploadItem, result?.error || 'Napaka strežnika');
                     }
                 } catch (e) {
-                    statusIcon.textContent = '❌';
-                    item.classList.add('error');
-                    etaEl.textContent = e.message;
+                    markError(uploadItem, 'Neveljaven odgovor');
                 }
             } else {
-                statusIcon.textContent = '❌';
-                item.classList.add('error');
+                markError(uploadItem, `HTTP ${xhr.status}`);
             }
-            // Reset fields
-            speedEl.textContent = '';
-            // etaEl.textContent = '';
         };
 
         xhr.onerror = () => {
-            statusIcon.textContent = '❌';
-            item.classList.add('error');
-            etaEl.textContent = 'Network Error';
+            element.classList.remove('uploading');
+            markError(uploadItem, 'Napaka omrežja');
         };
 
+        xhr.onabort = () => {
+            element.classList.remove('uploading');
+            markError(uploadItem, 'Preklicano');
+        };
+
+        cancelBtn.addEventListener('click', () => {
+            if (xhr.readyState > 0 && xhr.readyState < 4) {
+                xhr.abort();
+            } else {
+                // If already done or error, just remove from list?
+                // For now, let's allow removing the card
+                element.remove();
+            }
+        });
+
+        xhr.open('POST', '/upload.php', true);
         xhr.send(formData);
     }
 
-    function handleFiles(files) {
-        const listFiles = Array.from(files).slice(0, maxFiles);
-        listFiles.forEach(uploadFile);
+    function markSuccess(item) {
+        item.element.classList.add('success');
+        item.badge.textContent = 'Končano';
+        item.fill.style.width = '100%';
+        item.percentEl.textContent = '100%';
+        item.speedEl.textContent = '';
+        item.etaEl.textContent = 'Uspešno';
+        item.cancelBtn.textContent = '✓';
+        item.cancelBtn.disabled = true;
     }
 
-    dropZone.addEventListener('dragover', (event) => {
-        event.preventDefault();
+    function markError(item, msg) {
+        item.element.classList.add('error');
+        item.badge.textContent = 'Napaka';
+        item.etaEl.textContent = msg;
+        item.speedEl.textContent = '';
+    }
+
+    function handleFiles(fileList) {
+        // If mobile, switch UI to compact mode for dropzone to save space
+        if (isMobile && uploadList.children.length === 0) {
+            dropZone.classList.add('compact');
+        }
+
+        // Limit concurrent selection count
+        const filesToUpload = Array.from(fileList).slice(0, MAX_FILES);
+
+        if (fileList.length > MAX_FILES) {
+            alert(`Izbrali ste preveč datotek. Naloženo bo prvih ${MAX_FILES}.`);
+        }
+
+        filesToUpload.forEach(file => {
+            const uiItem = createUploadItem(file);
+            startUpload(uiItem);
+        });
+    }
+
+    // Event Listeners
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
         dropZone.classList.add('active');
     });
 
@@ -141,17 +243,22 @@
         dropZone.classList.remove('active');
     });
 
-    dropZone.addEventListener('drop', (event) => {
-        event.preventDefault();
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
         dropZone.classList.remove('active');
-        if (event.dataTransfer?.files?.length) {
-            handleFiles(event.dataTransfer.files);
+        if (e.dataTransfer.files.length) {
+            handleFiles(e.dataTransfer.files);
         }
     });
 
-    input.addEventListener('change', (event) => {
-        if (event.target.files?.length) {
-            handleFiles(event.target.files);
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            handleFiles(fileInput.files);
+            fileInput.value = ''; // Reset to allow selecting same file again
         }
     });
+
+    // Init
+    initUI();
+
 })();
