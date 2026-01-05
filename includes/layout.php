@@ -6,16 +6,29 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
 {
     global $pdo, $errors;
     $accentColor = setting_get($pdo, 'accent_color', '#4b8bff');
-    $fontSize = setting_get($pdo, 'font_size', '16px');
+    $pageScale = (int)setting_get($pdo, 'page_scale', '100');
+    $bgType = setting_get($pdo, 'bg_type', 'default');
+    $bgValue = setting_get($pdo, 'bg_value', '');
 
     $csrf = htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8');
     $isAdmin = $user && $user['role'] === 'admin';
-    echo '<!DOCTYPE html><html lang="sl"><head>';
+
+    $bgStyle = '';
+    if ($bgType === 'color') {
+        $bgStyle = 'background: ' . htmlspecialchars($bgValue) . ';';
+    } elseif ($bgType === 'image') {
+        $bgStyle = 'background: url(' . htmlspecialchars($bgValue) . ') no-repeat center center fixed; background-size: cover;';
+    }
+
+    // Default font size 16px = 100%. Scale adjusts this percentage on html.
+    $htmlStyle = "font-size: {$pageScale}%;";
+
+    echo '<!DOCTYPE html><html lang="sl" style="' . $htmlStyle . '"><head>';
     echo '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<meta name="csrf-token" content="' . $csrf . '">';
     echo '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>';
     echo '<link rel="stylesheet" href="/assets/css/app.css">';
-    echo '<style>:root { --accent: ' . htmlspecialchars($accentColor) . '; font-size: ' . htmlspecialchars($fontSize) . '; }</style>';
+    echo '<style>:root { --accent: ' . htmlspecialchars($accentColor) . '; } body { ' . $bgStyle . ' }</style>';
     echo '</head><body>';
 
     // Error Toast
