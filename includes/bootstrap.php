@@ -11,6 +11,14 @@ $paths = [
 ];
 
 $errors = [];
+
+$required_extensions = ['gd', 'pdo_sqlite'];
+foreach ($required_extensions as $ext) {
+    if (!extension_loaded($ext)) {
+        $errors[] = "Missing PHP extension: {$ext}";
+    }
+}
+
 foreach ($paths as $key => $dir) {
     if (!is_dir($dir)) {
         @mkdir($dir, 0775, true);
