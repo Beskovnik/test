@@ -107,6 +107,18 @@ $pdo->exec(
     )'
 );
 
+// Seed default admin user
+$stmt = $pdo->query('SELECT COUNT(*) FROM users');
+if ((int)$stmt->fetchColumn() === 0) {
+    $stmt = $pdo->prepare('INSERT INTO users (username, pass_hash, role, active, created_at) VALUES (:u, :p, :r, 1, :c)');
+    $stmt->execute([
+        ':u' => 'koble',
+        ':p' => password_hash('matiden1', PASSWORD_DEFAULT),
+        ':r' => 'admin',
+        ':c' => time(),
+    ]);
+}
+
 function setting_get(PDO $pdo, string $key, ?string $default = null): ?string
 {
     $stmt = $pdo->prepare('SELECT value FROM settings WHERE key = :key');
