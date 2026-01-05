@@ -57,233 +57,86 @@
         return fetch(url, { ...options, headers });
     }
 
-    // Viewer / Lightbox Logic
-    const grid = document.querySelector('.grid');
-    if (grid || document.querySelector('.card')) {
-        const getCards = () => document.querySelectorAll('.card');
-        const lightbox = document.createElement('div');
-        lightbox.className = 'lightbox';
-        // Complex structure for viewer + sidebar
-        lightbox.innerHTML = `
-            <div class="lightbox-overlay"></div>
-            <button class="prev" aria-label="Previous">❮</button>
-            <div class="lightbox-container">
-                <div class="lightbox-media"></div>
-                <div class="lightbox-sidebar">
-                    <button class="close-sidebar" aria-label="Close">×</button>
-                    <div class="meta-header">
-                        <h2 class="meta-title"></h2>
-                        <div class="meta-info">
-                            <span class="meta-author"></span> • <span class="meta-date"></span>
-                        </div>
-                        <div class="meta-stats">
-                            <span class="stat-views">👁️ <span class="val">0</span></span>
-                            <button class="stat-like">❤️ <span class="val">0</span></button>
-                        </div>
-                    </div>
-                    <div class="comments-section">
-                        <h3>Komentarji</h3>
-                        <div class="comments-list"></div>
-                        <form class="comment-form">
-                            <textarea name="body" placeholder="Dodaj komentar..." required></textarea>
-                            <button type="submit" class="button small">Objavi</button>
-                        </form>
-                        <div class="login-cta" style="display:none;">
-                            <a href="/login.php">Prijavi se</a> za komentiranje.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <button class="next" aria-label="Next">❯</button>
-        `;
-        document.body.appendChild(lightbox);
+    // View Page Logic (Static)
+    const commentsSection = document.querySelector('.comments');
+    const likeBtn = document.querySelector('.button.like');
 
-        const container = lightbox.querySelector('.lightbox-container');
-        const mediaContainer = lightbox.querySelector('.lightbox-media');
-        const commentsList = lightbox.querySelector('.comments-list');
-        const commentForm = lightbox.querySelector('.comment-form');
-        const loginCta = lightbox.querySelector('.login-cta');
-        const likeBtn = lightbox.querySelector('.stat-like');
+    if (commentsSection) {
+        const postId = commentsSection.dataset.postId;
+        const commentList = commentsSection.querySelector('.comment-list');
+        const commentForm = commentsSection.querySelector('.comment-form');
 
-        let currentIndex = -1;
-        let currentItem = null;
+        // Load Comments
+        loadComments(postId);
 
-        function formatDate(timestamp) {
-            return new Date(timestamp * 1000).toLocaleDateString('sl-SI');
-        }
+        // Submit Comment
+        if (commentForm) {
+            commentForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!csrfToken) return; // Should be handled by UI check
 
-        async function renderItem(index) {
-            const items = window.galleryItems || [];
-            if (!items[index]) {
-                return;
-            }
-            currentIndex = index;
-            currentItem = items[index];
+                const bodyInput = commentForm.querySelector('textarea');
+                const body = bodyInput.value;
+                const formData = new FormData();
+                formData.append('post_id', postId);
+                formData.append('body', body);
+                formData.append('csrf_token', csrfToken);
 
-            // UI Reset
-            mediaContainer.innerHTML = '';
-            commentsList.innerHTML = '<div class="loader">Nalaganje...</div>';
-
-            // Media
-            if (currentItem.type === 'video') {
-                const video = document.createElement('video');
-                video.src = currentItem.file;
-                video.controls = true;
-                video.autoplay = true;
-                mediaContainer.appendChild(video);
-            } else {
-                const img = document.createElement('img');
-                img.src = currentItem.file;
-                img.alt = currentItem.title || '';
-                mediaContainer.appendChild(img);
-            }
-
-            // Meta
-            lightbox.querySelector('.meta-title').textContent = currentItem.title || 'Brez naslova';
-            lightbox.querySelector('.meta-author').textContent = currentItem.username;
-            lightbox.querySelector('.meta-date').textContent = formatDate(currentItem.created_at);
-            lightbox.querySelector('.stat-views .val').textContent = currentItem.views;
-            lightbox.querySelector('.stat-like .val').textContent = currentItem.likes;
-
-            lightbox.classList.add('active');
-
-            // Increment View
-            const formData = new FormData();
-            formData.append('post_id', currentItem.id);
-            request('/api/view.php', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(data => {
-                    if(data.views) {
-                        currentItem.views = data.views;
-                        lightbox.querySelector('.stat-views .val').textContent = data.views;
+                try {
+                    const res = await request('/api/comment_add.php', { method: 'POST', body: formData });
+                    if (res.ok) {
+                        bodyInput.value = '';
+                        loadComments(postId);
+                    } else {
+                        alert('Napaka pri objavi.');
                     }
-                })
-                .catch(console.error);
-
-            // Load Comments & Check Like status
-            // Note: We need to know if user liked this post.
-            // Currently API/like returns status after toggle. We might need a check endpoint or include in list.
-            // For now, we assume state isn't known until interaction or extra fetch.
-            // But we can check likes via comment_list call if we modify it, or separate call.
-            // Simple approach: Just load comments for now. Like status is hard without extra API.
-            // User requirement: "Prevent spam: same user cannot like multiple times". Backend handles this.
-            // Frontend: button just toggles.
-
-            loadComments(currentItem.id);
+                } catch(e) { console.error(e); }
+            });
         }
 
-        async function loadComments(postId) {
+        async function loadComments(id) {
             try {
-                const res = await request(`/api/comment_list.php?post_id=${postId}`);
+                const res = await request(`/api/comment_list.php?post_id=${id}`);
                 const data = await res.json();
-                commentsList.innerHTML = '';
+                commentList.innerHTML = '';
                 if (data.comments && data.comments.length) {
                     data.comments.forEach(c => {
                         const div = document.createElement('div');
                         div.className = 'comment-item';
                         div.innerHTML = `<strong>${c.author}</strong>: ${c.body}`;
-                        commentsList.appendChild(div);
+                        commentList.appendChild(div);
                     });
                 } else {
-                    commentsList.innerHTML = '<p class="no-comments">Ni komentarjev.</p>';
+                    commentList.innerHTML = '<p class="no-comments">Ni komentarjev.</p>';
                 }
             } catch (e) {
-                commentsList.innerHTML = '<p class="error">Napaka pri nalaganju.</p>';
+                commentList.innerHTML = '<p class="error">Napaka pri nalaganju.</p>';
             }
         }
+    }
 
-        // Event Listeners (Delegation)
-        const grid = document.querySelector('.grid');
-        if (grid) {
-            grid.addEventListener('click', (e) => {
-                const card = e.target.closest('.card');
-                if (card) {
-                    const allCards = Array.from(document.querySelectorAll('.card'));
-                    const index = allCards.indexOf(card);
-                    if (index !== -1) renderItem(index);
-                }
-            });
-        }
-
-        // Navigation
-        lightbox.querySelector('.prev').addEventListener('click', (e) => {
-            e.stopPropagation();
-            renderItem(Math.max(currentIndex - 1, 0));
-        });
-        lightbox.querySelector('.next').addEventListener('click', (e) => {
-            e.stopPropagation();
-            renderItem(Math.min(currentIndex + 1, getCards().length - 1));
-        });
-
-        // Close
-        const closeEvents = ['click', 'keydown'];
-        lightbox.addEventListener('click', (e) => {
-            if (e.target.classList.contains('lightbox-overlay') || e.target.classList.contains('close-sidebar')) {
-                lightbox.classList.remove('active');
-                mediaContainer.innerHTML = ''; // Stop video
-            }
-        });
-        document.addEventListener('keydown', (e) => {
-            if (!lightbox.classList.contains('active')) return;
-            if (e.key === 'Escape') {
-                lightbox.classList.remove('active');
-                mediaContainer.innerHTML = '';
-            }
-            if (e.key === 'ArrowLeft') renderItem(Math.max(currentIndex - 1, 0));
-            if (e.key === 'ArrowRight') renderItem(Math.min(currentIndex + 1, getCards().length - 1));
-        });
-
-        // Comments
-        commentForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!csrfToken) {
-                // Not logged in
-                loginCta.style.display = 'block';
-                commentForm.style.display = 'none';
-                return;
-            }
-            const body = commentForm.querySelector('textarea').value;
-            const formData = new FormData();
-            formData.append('post_id', currentItem.id);
-            formData.append('body', body);
-            formData.append('csrf_token', csrfToken);
-
-            try {
-                const res = await request('/api/comment_add.php', { method: 'POST', body: formData });
-                if (res.ok) {
-                    commentForm.reset();
-                    loadComments(currentItem.id);
-                } else {
-                    alert('Napaka pri objavi. Ste prijavljeni?');
-                }
-            } catch(e) { console.error(e); }
-        });
-
-        // Like
+    if (likeBtn) {
         likeBtn.addEventListener('click', async () => {
              if (!csrfToken) {
                 alert('Za všečkanje se morate prijaviti.');
                 return;
             }
+            const postId = likeBtn.dataset.postId;
             const formData = new FormData();
-            formData.append('post_id', currentItem.id);
+            formData.append('post_id', postId);
             formData.append('csrf_token', csrfToken);
 
             try {
                 const res = await request('/api/like.php', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.like_count !== undefined) {
-                    currentItem.likes = data.like_count;
-                    likeBtn.querySelector('.val').textContent = data.like_count;
+                    likeBtn.querySelector('.like-count').textContent = data.like_count;
+                    const label = likeBtn.querySelector('.like-label');
+                    if (label) label.textContent = data.liked ? 'Všečkano' : 'Všečkaj';
                     likeBtn.classList.toggle('liked', data.liked);
                 }
             } catch(e) { console.error(e); }
         });
-
-        // Check login state for form
-        if (!csrfToken) {
-             commentForm.style.display = 'none';
-             loginCta.style.display = 'block';
-        }
     }
+
 })();

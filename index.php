@@ -102,8 +102,12 @@ foreach ($grouped as $label => $items) {
         $title = htmlspecialchars($item['title'] ?: 'Brez naslova', ENT_QUOTES, 'UTF-8');
         $id = (int)$item['id'];
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
-        echo '<article class="card" data-id="' . $id . '" data-type="' . htmlspecialchars($item['type'], ENT_QUOTES, 'UTF-8') . '" data-file="/' . htmlspecialchars($item['file_path'], ENT_QUOTES, 'UTF-8') . '">';
-        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy" onerror="this.onerror=null;this.src=\'/assets/img/placeholder.svg\'">';
+
+        $original = '/' . htmlspecialchars($item['file_path'], ENT_QUOTES, 'UTF-8');
+        $fallback = $item['type'] === 'image' ? $original : '/assets/img/placeholder.svg';
+
+        echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';
+        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy" onerror="this.onerror=null;this.src=\'' . $fallback . '\'">';
         echo $badge;
         echo '<div class="card-meta">';
         echo '<h3>' . $title . '</h3>';
@@ -111,7 +115,7 @@ foreach ($grouped as $label => $items) {
             echo '<span>' . htmlspecialchars($item['username'], ENT_QUOTES, 'UTF-8') . '</span>';
         }
         echo '</div>';
-        echo '</article>';
+        echo '</a>';
     }
     echo '</div></section>';
 }
