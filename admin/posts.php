@@ -57,7 +57,7 @@ render_flash($flash ?? null);
             </thead>
             <tbody>
             <?php foreach ($posts as $post) : ?>
-                <tr style="border-bottom: 1px solid var(--border);">
+                <tr style="border-bottom: 1px solid var(--border);" data-id="<?php echo $post['id']; ?>">
                     <td style="padding: 10px; width: 100px;">
                         <img class="thumb" src="/<?php echo htmlspecialchars($post['thumb_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="thumb" style="width: 80px; height: 60px; object-fit: cover; border-radius: 4px;">
                     </td>
@@ -75,11 +75,7 @@ render_flash($flash ?? null);
                     <td style="padding: 10px;">
                         <div style="display: flex; gap: 5px;">
                             <a href="/<?php echo htmlspecialchars($post['file_path']); ?>" target="_blank" class="button small ghost">View</a>
-                            <form method="post" action="/api/post_delete.php" class="inline" onsubmit="return confirm('Res izbrišem objavo?');">
-                                <?php echo csrf_field(); ?>
-                                <input type="hidden" name="post_id" value="<?php echo (int)$post['id']; ?>">
-                                <button class="button danger small" type="submit">Delete</button>
-                            </form>
+                            <button class="button danger small" onclick="deleteItem('post', <?php echo $post['id']; ?>, this)">Delete</button>
                         </div>
                     </td>
                 </tr>
@@ -88,5 +84,6 @@ render_flash($flash ?? null);
         </table>
     </div>
 </div>
+<script src="/assets/js/admin.js"></script>
 <?php
 render_footer();
