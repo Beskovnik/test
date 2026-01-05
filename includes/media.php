@@ -10,6 +10,10 @@ function is_ffmpeg_available(): bool
 
 function generate_image_thumb(string $source, string $target): bool
 {
+    if (!extension_loaded('gd')) {
+        return false;
+    }
+
     $info = getimagesize($source);
     if (!$info) {
         return false;
@@ -20,18 +24,22 @@ function generate_image_thumb(string $source, string $target): bool
     $newWidth = (int)round($width * $scale);
     $newHeight = (int)round($height * $scale);
 
+    $src = null;
     switch ($type) {
         case IMAGETYPE_JPEG:
-            $src = imagecreatefromjpeg($source);
+            if (function_exists('imagecreatefromjpeg')) {
+                $src = imagecreatefromjpeg($source);
+            }
             break;
         case IMAGETYPE_PNG:
-            $src = imagecreatefrompng($source);
+            if (function_exists('imagecreatefrompng')) {
+                $src = imagecreatefrompng($source);
+            }
             break;
         case IMAGETYPE_WEBP:
-            if (!function_exists('imagecreatefromwebp')) {
-                return false;
+            if (function_exists('imagecreatefromwebp')) {
+                $src = imagecreatefromwebp($source);
             }
-            $src = imagecreatefromwebp($source);
             break;
         default:
             return false;
@@ -42,6 +50,11 @@ function generate_image_thumb(string $source, string $target): bool
     }
 
     $dst = imagecreatetruecolor($newWidth, $newHeight);
+    if (!$dst) {
+        imagedestroy($src);
+        return false;
+    }
+
     imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
     $result = imagejpeg($dst, $target, 82);
     imagedestroy($src);
@@ -51,9 +64,17 @@ function generate_image_thumb(string $source, string $target): bool
 
 function generate_placeholder_thumb(string $target): bool
 {
+    if (!extension_loaded('gd') || !function_exists('imagecreatetruecolor')) {
+        return false;
+    }
+
     $width = 480;
     $height = 270;
     $image = imagecreatetruecolor($width, $height);
+    if (!$image) {
+        return false;
+    }
+
     $bg = imagecolorallocate($image, 28, 31, 36);
     $fg = imagecolorallocate($image, 200, 200, 200);
     imagefilledrectangle($image, 0, 0, $width, $height, $bg);
