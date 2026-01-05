@@ -40,8 +40,9 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     echo nav_link('albums', '/index.php?tab=albums', 'Albumi');
     echo nav_link('favorites', '/index.php?tab=favorites', 'Priljubljene');
     echo nav_link('upload', '/upload.php', 'Upload');
+    echo nav_link('settings', '/settings.php', 'Info');
     if ($isAdmin) {
-        echo nav_link('settings', '/settings.php', 'Nastavitve');
+        echo nav_link('admin', '/admin/index.php', 'Admin Panel');
     }
     echo '</nav>';
     echo '</aside>';
