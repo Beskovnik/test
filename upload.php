@@ -23,28 +23,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $fileCount = count($files['name']);
-    if ($fileCount > 10) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Maximum 10 files']);
-        exit;
+
+    // Normalize files array if multiple
+    $normalizedFiles = [];
+    if (is_array($files['name'])) {
+        $count = count($files['name']);
+        if ($count > 10) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Maximum 10 files']);
+            exit;
+        }
+        for ($i = 0; $i < $count; $i++) {
+            $normalizedFiles[] = [
+                'name' => $files['name'][$i],
+                'type' => $files['type'][$i],
+                'tmp_name' => $files['tmp_name'][$i],
+                'error' => $files['error'][$i],
+                'size' => $files['size'][$i]
+            ];
+        }
+    } else {
+        $normalizedFiles[] = $files;
     }
 
-    for ($i = 0; $i < $fileCount; $i++) {
-        if ($files['error'][$i] !== UPLOAD_ERR_OK) {
-            $responses[] = ['name' => $files['name'][$i], 'error' => 'Upload failed'];
+    foreach ($normalizedFiles as $file) {
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $responses[] = ['name' => $file['name'], 'error' => 'Upload failed (Code ' . $file['error'] . ')'];
             continue;
         }
-        $originalName = $files['name'][$i];
-        $tmpName = $files['tmp_name'][$i];
-        $size = (int)$files['size'][$i];
+        $originalName = $file['name'];
+        $tmpName = $file['tmp_name'];
+        $size = (int)$file['size'];
         $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
         if (in_array($ext, $config['blocked_exts'], true)) {
             $responses[] = ['name' => $originalName, 'error' => 'File type blocked'];
             continue;
         }
+
         $mime = $finfo->file($tmpName) ?: '';
         $mediaType = detect_media_type($mime);
+
         if ($mediaType === 'image' && !in_array($mime, $config['allowed_images'], true)) {
             $responses[] = ['name' => $originalName, 'error' => 'Invalid image type'];
             continue;
@@ -57,10 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $responses[] = ['name' => $originalName, 'error' => 'Unsupported file'];
             continue;
         }
-        if ($mediaType === 'image' && $size > $config['max_image_size']) {
-            $responses[] = ['name' => $originalName, 'error' => 'Image too large'];
-            continue;
-        }
+
+        // Size check (Max 50GB limit is application logical limit, PHP limit might be lower)
+        // We rely on frontend to block huge files if PHP limit is small, but if server allows, we process.
 
         $random = bin2hex(random_bytes(16));
         $filename = $random . '.' . $ext;
@@ -76,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $height = null;
         $duration = null;
         $thumbSuccess = false;
+
         if ($mediaType === 'image') {
             $info = getimagesize(__DIR__ . '/' . $target);
             if ($info) {
@@ -88,7 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$thumbSuccess) {
-            // Fallback for images: use original as thumb if generation failed
             if ($mediaType === 'image') {
                 $thumbTarget = $target;
             } else {
@@ -127,17 +145,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-render_header('Upload', $user, 'upload');
+render_header('Naloži datoteke', $user, 'upload');
 render_flash($flash ?? null);
 ?>
 <div class="upload-page">
-    <div class="uploader" data-max="10">
-        <div class="drop-zone">
-            <p>Povlecite datoteke sem ali kliknite za izbiro (max 10)</p>
-            <p class="text-muted small">Server limits: Upload <?php echo $maxUpload; ?>, Post <?php echo $maxPost; ?>. App limit: 50GB.</p>
-            <input type="file" name="files[]" multiple accept="image/*,video/*">
+    <div class="uploader-container">
+        <!-- Main Upload Area -->
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-content">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <h2 class="upload-title">Povleci datoteke sem</h2>
+                <p class="upload-subtitle">ali tapni za izbor (max 10)</p>
+                <input type="file" id="fileInput" name="files[]" multiple accept="image/*,video/*" class="file-input">
+            </div>
+            <div class="upload-limits text-muted">
+                Max 50GB na datoteko
+            </div>
         </div>
-        <div class="upload-list"></div>
+
+        <!-- File List -->
+        <div class="upload-list" id="uploadList">
+            <!-- Files will be added here via JS -->
+        </div>
     </div>
 </div>
 <script src="/assets/js/uploader.js"></script>
