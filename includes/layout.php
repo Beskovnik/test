@@ -6,7 +6,7 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
 {
     global $pdo, $errors;
     $accentColor = setting_get($pdo, 'accent_color', '#4b8bff');
-    $pageScale = (int)setting_get($pdo, 'page_scale', '100');
+    $pageScale = (int)setting_get($pdo, 'page_scale', '150');
     $bgType = setting_get($pdo, 'bg_type', 'default');
     $bgValue = setting_get($pdo, 'bg_value', '');
 
@@ -45,7 +45,7 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     echo '<div class="app">';
     echo '<div class="mobile-overlay"></div>';
     echo '<aside class="sidebar">';
-    echo '<div class="logo">immich<span>gallery</span></div>';
+    echo '<div class="logo">Galerija</div>';
     echo '<nav class="nav">';
     echo nav_link('feed', '/index.php', 'Slike');
     echo nav_link('videos', '/index.php?type=video', 'Video');
