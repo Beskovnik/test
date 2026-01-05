@@ -1095,3 +1095,88 @@ a:hover {
 .app {
     animation: pageFadeIn 0.3s ease-out;
 }
+
+/* Admin Toast */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 0.75rem;
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border-left: 4px solid var(--accent);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    z-index: 1000;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-error { border-color: var(--danger); }
+.toast-success { border-color: #4cd964; }
+
+/* Admin Modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+.modal {
+    background: var(--panel);
+    width: 100%;
+    max-width: 400px;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    padding: 2rem;
+    transform: scale(0.95);
+    transition: transform 0.3s;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.modal-overlay.active .modal { transform: scale(1); }
+.modal h2 { margin-top: 0; }
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+/* Responsive Table Card View */
+@media (max-width: 768px) {
+    .admin-page table, .admin-page thead, .admin-page tbody, .admin-page th, .admin-page td, .admin-page tr {
+        display: block;
+    }
+    .admin-page thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+    .admin-page tr {
+        margin-bottom: 1rem;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        background: var(--card);
+        padding: 1rem;
+    }
+    .admin-page td {
+        border: none;
+        padding: 0.5rem 0;
+        position: relative;
+        padding-left: 0;
+    }
+    .admin-page td:before {
+        /* Optional: add labels if needed via data-label */
+    }
+}
