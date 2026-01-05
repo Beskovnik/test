@@ -58,8 +58,9 @@
     }
 
     // Viewer / Lightbox Logic
-    const cards = document.querySelectorAll('.card');
-    if (cards.length) {
+    const grid = document.querySelector('.grid');
+    if (grid || document.querySelector('.card')) {
+        const getCards = () => document.querySelectorAll('.card');
         const lightbox = document.createElement('div');
         lightbox.className = 'lightbox';
         // Complex structure for viewer + sidebar
@@ -211,7 +212,7 @@
         });
         lightbox.querySelector('.next').addEventListener('click', (e) => {
             e.stopPropagation();
-            renderItem(Math.min(currentIndex + 1, cards.length - 1));
+            renderItem(Math.min(currentIndex + 1, getCards().length - 1));
         });
 
         // Close
@@ -229,7 +230,7 @@
                 mediaContainer.innerHTML = '';
             }
             if (e.key === 'ArrowLeft') renderItem(Math.max(currentIndex - 1, 0));
-            if (e.key === 'ArrowRight') renderItem(Math.min(currentIndex + 1, cards.length - 1));
+            if (e.key === 'ArrowRight') renderItem(Math.min(currentIndex + 1, getCards().length - 1));
         });
 
         // Comments

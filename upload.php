@@ -88,9 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$thumbSuccess) {
-            $thumbTarget = 'thumbs/placeholder.jpg';
-            if (!file_exists(__DIR__ . '/' . $thumbTarget)) {
-                generate_placeholder_thumb(__DIR__ . '/' . $thumbTarget);
+            // Fallback for images: use original as thumb if generation failed
+            if ($mediaType === 'image') {
+                $thumbTarget = $target;
+            } else {
+                $thumbTarget = 'thumbs/placeholder.jpg';
+                if (!file_exists(__DIR__ . '/' . $thumbTarget)) {
+                    generate_placeholder_thumb(__DIR__ . '/' . $thumbTarget);
+                }
             }
         }
 
