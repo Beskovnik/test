@@ -92,9 +92,9 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token']); // Full URL needs 
                 <span class="like-label"><?php echo $liked ? 'Všečkano' : 'Všečkaj'; ?></span>
                 <span class="like-count"><?php echo $likeCount; ?></span>
             </button>
-            <button class="button ghost" onclick="sharePost('<?php echo $shareUrl; ?>')">Deli 🔗</button>
+            <button class="button ghost" id="shareBtn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
             <?php if ($user && ($user['role'] === 'admin' || $user['id'] === $post['user_id'])): ?>
-                <button class="button danger" onclick="deletePost(<?php echo $post['id']; ?>)">Izbriši 🗑️</button>
+                <button class="button danger" id="deleteBtn" data-id="<?php echo $post['id']; ?>">Izbriši 🗑️</button>
             <?php endif; ?>
         </div>
 
@@ -115,109 +115,5 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token']); // Full URL needs 
     </div>
 </div>
 
-<script>
-// Async View Increment
-document.addEventListener('DOMContentLoaded', async () => {
-    const id = <?php echo (int)$post['id']; ?>;
-    try {
-        const res = await fetch('/api/view.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({post_id: id, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
-        });
-        const data = await res.json();
-        if (data.ok && data.views) {
-            document.getElementById('viewCount').textContent = '👁️ ' + data.views;
-        }
-    } catch (e) {
-        console.error('View increment failed', e);
-    }
-});
-
-// Inline JS for View Actions (Refactor to app.js later if time permits)
-async function sharePost(url) {
-    const fullUrl = window.location.origin + url;
-    try {
-        await navigator.clipboard.writeText(fullUrl);
-        showToast('success', 'Povezava kopirana!');
-    } catch (err) {
-        prompt('Kopiraj povezavo:', fullUrl);
-    }
-}
-
-async function deletePost(id) {
-    if (!confirm('Res želiš izbrisati to objavo?')) return;
-    try {
-        const res = await fetch('/api/post_delete.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            window.location.href = '/index.php';
-        } else {
-            showToast('error', data.error || 'Napaka pri brisanju');
-        }
-    } catch (e) {
-        showToast('error', 'Napaka omrežja');
-    }
-}
-
-// Like Logic
-document.getElementById('likeBtn')?.addEventListener('click', async function() {
-    const id = this.dataset.id;
-    try {
-        const res = await fetch('/api/like.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({post_id: id, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            this.classList.toggle('active', data.liked);
-            this.querySelector('.like-icon').textContent = data.liked ? '❤️' : '🤍';
-            this.querySelector('.like-label').textContent = data.liked ? 'Všečkano' : 'Všečkaj';
-            this.querySelector('.like-count').textContent = data.count;
-        }
-    } catch (e) { console.error(e); }
-});
-
-// Comments Logic
-const commentList = document.getElementById('commentList');
-async function loadComments() {
-    const id = document.getElementById('commentsSection').dataset.id;
-    const res = await fetch(`/api/comment_list.php?post_id=${id}`);
-    const data = await res.json();
-    if (data.ok) {
-        commentList.innerHTML = data.comments.map(c => `
-            <div class="comment">
-                <strong>${c.author}</strong>
-                <p>${c.body}</p>
-                <small>${new Date(c.created_at * 1000).toLocaleString()}</small>
-            </div>
-        `).join('') || '<p class="muted">Ni komentarjev.</p>';
-    }
-}
-loadComments();
-
-document.getElementById('commentForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const body = this.body.value;
-    const id = document.getElementById('commentsSection').dataset.id;
-    const res = await fetch('/api/comment_add.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({post_id: id, body, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
-    });
-    const data = await res.json();
-    if (data.ok) {
-        this.reset();
-        loadComments();
-    } else {
-        showToast('error', data.error);
-    }
-});
-</script>
 <?php
 render_footer();
