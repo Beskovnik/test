@@ -8,9 +8,14 @@ require __DIR__ . '/includes/layout.php';
 $user = require_login($pdo);
 $config = app_config();
 
-// Check PHP limits
-$maxUpload = ini_get('upload_max_filesize');
-$maxPost = ini_get('post_max_size');
+// Get settings
+$maxImageGb = (float)setting_get($pdo, 'max_image_gb', '5.0');
+$maxVideoGb = (float)setting_get($pdo, 'max_video_gb', '5.0');
+$maxFiles = (int)setting_get($pdo, 'max_files_per_upload', '10');
+
+// Calculate bytes
+$maxImageBytes = $maxImageGb * 1024 * 1024 * 1024;
+$maxVideoBytes = $maxVideoGb * 1024 * 1024 * 1024;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -28,9 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $normalizedFiles = [];
     if (is_array($files['name'])) {
         $count = count($files['name']);
-        if ($count > 10) {
+        if ($count > $maxFiles) {
             http_response_code(400);
-            echo json_encode(['error' => 'Maximum 10 files']);
+            echo json_encode(['error' => "Maximum {$maxFiles} files"]);
             exit;
         }
         for ($i = 0; $i < $count; $i++) {
@@ -64,21 +69,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mime = $finfo->file($tmpName) ?: '';
         $mediaType = detect_media_type($mime);
 
-        if ($mediaType === 'image' && !in_array($mime, $config['allowed_images'], true)) {
-            $responses[] = ['name' => $originalName, 'error' => 'Invalid image type'];
-            continue;
-        }
-        if ($mediaType === 'video' && !in_array($mime, $config['allowed_videos'], true)) {
-            $responses[] = ['name' => $originalName, 'error' => 'Invalid video type'];
-            continue;
-        }
-        if (!$mediaType) {
+        if ($mediaType === 'image') {
+            if (!in_array($mime, $config['allowed_images'], true)) {
+                $responses[] = ['name' => $originalName, 'error' => 'Invalid image type'];
+                continue;
+            }
+            if ($size > $maxImageBytes) {
+                $responses[] = ['name' => $originalName, 'error' => "Image too large (Max {$maxImageGb} GB)"];
+                continue;
+            }
+        } elseif ($mediaType === 'video') {
+            if (!in_array($mime, $config['allowed_videos'], true)) {
+                $responses[] = ['name' => $originalName, 'error' => 'Invalid video type'];
+                continue;
+            }
+            if ($size > $maxVideoBytes) {
+                $responses[] = ['name' => $originalName, 'error' => "Video too large (Max {$maxVideoGb} GB)"];
+                continue;
+            }
+        } else {
             $responses[] = ['name' => $originalName, 'error' => 'Unsupported file'];
             continue;
         }
-
-        // Size check (Max 50GB limit is application logical limit, PHP limit might be lower)
-        // We rely on frontend to block huge files if PHP limit is small, but if server allows, we process.
 
         $random = bin2hex(random_bytes(16));
         $filename = $random . '.' . $ext;
@@ -159,11 +171,11 @@ render_flash($flash ?? null);
                     <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
                 <h2 class="upload-title">Povleci datoteke sem</h2>
-                <p class="upload-subtitle">ali tapni za izbor (max 10)</p>
+                <p class="upload-subtitle">ali tapni za izbor (max <?php echo $maxFiles; ?>)</p>
                 <input type="file" id="fileInput" name="files[]" multiple accept="image/*,video/*" class="file-input">
             </div>
             <div class="upload-limits text-muted">
-                Max 50GB na datoteko
+                Max slika: <?php echo $maxImageGb; ?> GB • Max video: <?php echo $maxVideoGb; ?> GB • Max: <?php echo $maxFiles; ?> datotek
             </div>
         </div>
 
@@ -173,6 +185,15 @@ render_flash($flash ?? null);
         </div>
     </div>
 </div>
+<script>
+    window.APP_LIMITS = {
+        maxFiles: <?php echo $maxFiles; ?>,
+        maxImageBytes: <?php echo $maxImageBytes; ?>,
+        maxVideoBytes: <?php echo $maxVideoBytes; ?>,
+        maxImageGb: <?php echo $maxImageGb; ?>,
+        maxVideoGb: <?php echo $maxVideoGb; ?>
+    };
+</script>
 <script src="/assets/js/uploader.js"></script>
 <?php
 render_footer();
