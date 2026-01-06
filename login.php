@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF check
     verify_csrf();
 
-    $username = trim($_POST['identifier'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $username = trim(isset($_POST['identifier']) ? $_POST['identifier'] : '');
+    $password = isset($_POST['password']) ? $_POST['password'] : '';
 
     $pdo = Database::connect();
     $u = null;
@@ -69,7 +69,7 @@ render_header('Prijava', null);
             <label for="identifier" style="color:var(--muted); font-size:0.9rem; font-weight:500;">Uporabniško ime ali email</label>
             <input type="text" id="identifier" name="identifier" autocomplete="username" required
                    placeholder="Vpišite svoje podatke"
-                   value="<?php echo htmlspecialchars($username ?? ''); ?>"
+                   value="<?php echo htmlspecialchars(isset($username) ? $username : ''); ?>"
                    <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
         </div>
 
