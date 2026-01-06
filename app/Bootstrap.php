@@ -140,7 +140,7 @@ $pdo->exec(
 
 // Audit Log
 $pdo->exec(
-    'CREATE TABLE IF NOT EXISTS audit_log (
+    'CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         admin_user_id INTEGER,
         action TEXT,
