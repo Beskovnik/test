@@ -74,8 +74,14 @@ foreach ($grouped as $label => $items) {
     echo '<div class="grid">';
     foreach ($items as $item) {
         $id = (int)$item['id'];
-        $thumb = '/' . ($item['thumb_path'] ?: $item['file_path']);
         $original = '/' . $item['file_path'];
+
+        if ($item['type'] === 'image') {
+            $thumb = '/thumb.php?src=' . urlencode($original) . '&w=420&h=420&fit=cover';
+        } else {
+            $thumb = '/' . ($item['thumb_path'] ?: $item['file_path']);
+        }
+
         $title = $id . ' ' . ($item['type'] === 'video' ? 'video' : 'slika');
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
         $fallback = '/assets/img/placeholder.svg';
@@ -85,12 +91,15 @@ foreach ($grouped as $label => $items) {
         $jsFallback = json_encode($fallback);
 
         $onError = "this.onerror=null;this.src=$jsFallback";
-        if ($item['type'] === 'image' && $thumb !== $original) {
+        if ($item['type'] === 'image') {
+            // If thumb.php fails, try original
             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
+        } elseif ($thumb !== $original) {
+             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
         }
 
         echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';
-        echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" width="420" height="420" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
+        echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" width="420" height="420" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
         echo $badge;
         echo '<div class="card-meta">';
         echo '<h3>' . htmlspecialchars($title) . '</h3>';
