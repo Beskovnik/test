@@ -14,6 +14,31 @@ class Media
         return !empty($result);
     }
 
+    public static function getVideoInfo(string $source): ?array
+    {
+        if (!self::isFfmpegAvailable()) {
+            return null;
+        }
+
+        $cmd = sprintf(
+            'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 %s',
+            escapeshellarg($source)
+        );
+        $output = shell_exec($cmd);
+
+        if ($output) {
+            $parts = explode(',', trim($output));
+            if (count($parts) === 2) {
+                return [
+                    'width' => (int)$parts[0],
+                    'height' => (int)$parts[1]
+                ];
+            }
+        }
+
+        return null;
+    }
+
     public static function generateResized(string $source, string $target, int $maxWidth, int $maxHeight, int $quality = 80): bool
     {
         $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
@@ -87,17 +112,19 @@ class Media
         return $res;
     }
 
-    public static function generateVideoThumb(string $source, string $target, int $width = 480): bool
+    public static function generateVideoThumb(string $source, string $target, int $maxWidth = 480): bool
     {
         if (self::isFfmpegAvailable()) {
+            // Seek to 0.1s instead of 1s to better handle short videos
             $cmd = sprintf(
-                'ffmpeg -y -ss 1 -i %s -frames:v 1 -vf "scale=%d:-1" %s 2>&1',
+                'ffmpeg -y -ss 1 -i %s -frames:v 1 -vf "scale=\'min(%d,iw)\':-2" %s 2>&1',
+                'ffmpeg -y -ss 0.1 -i %s -frames:v 1 -vf "scale=\'min(%d,iw)\':-1" %s 2>&1',
                 escapeshellarg($source),
-                $width,
+                $maxWidth,
                 escapeshellarg($target)
             );
             shell_exec($cmd);
-            return file_exists($target);
+            return file_exists($target) && filesize($target) > 0;
         }
         return false; // Or placeholder
     }

@@ -16,6 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Security: Validate username characters (Alphanumeric, underscore, dash)
+    if (!preg_match('/^[a-zA-Z0-9_-]+$/', $username)) {
+        $_SESSION['flash'] = ['type' => 'error', 'message' => 'Uporabniško ime lahko vsebuje le črke, številke, pomišljaje in podčrtaje.'];
+        header('Location: /register.php');
+        exit;
+    }
+
     $pdo = Database::connect();
 
     // Check existing
@@ -60,14 +67,16 @@ render_flash($_SESSION['flash'] ?? null); unset($_SESSION['flash']);
         <?php echo csrf_field(); ?>
         <h1>Registracija</h1>
 
+        <label for="username">Uporabniško ime</label>
+        <input type="text" id="username" name="username" autocomplete="username" required minlength="3">
         <label>Uporabniško ime</label>
-        <input type="text" name="username" required minlength="3">
+        <input type="text" name="username" required minlength="3" pattern="^[a-zA-Z0-9_-]+$" title="Le črke, številke, - in _">
 
-        <label>Email (opcijsko)</label>
-        <input type="email" name="email">
+        <label for="email">Email (opcijsko)</label>
+        <input type="email" id="email" name="email" autocomplete="email">
 
-        <label>Geslo</label>
-        <input type="password" name="password" required minlength="8">
+        <label for="password">Geslo</label>
+        <input type="password" id="password" name="password" autocomplete="new-password" required minlength="8">
 
         <button class="button" type="submit">Ustvari račun</button>
 
