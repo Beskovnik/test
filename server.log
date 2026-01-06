@@ -26,3 +26,21 @@
 [Mon Jan  5 23:52:05 2026] [::1]:40960 Accepted
 [Mon Jan  5 23:52:05 2026] [::1]:40960 [200]: GET /api/comment_list.php?post_id=1
 [Mon Jan  5 23:52:05 2026] [::1]:40960 Closing
+[Tue Jan  6 00:26:19 2026] [::1]:54526 Accepted
+[Tue Jan  6 00:26:19 2026] [::1]:54526 [200]: GET /
+[Tue Jan  6 00:26:19 2026] [::1]:54526 Closing
+[Tue Jan  6 00:27:09 2026] [::1]:36942 Accepted
+[Tue Jan  6 00:27:09 2026] [::1]:36942 [200]: GET /
+[Tue Jan  6 00:27:09 2026] [::1]:36942 Closing
+[Tue Jan  6 00:33:32 2026] [::1]:44938 Accepted
+[Tue Jan  6 00:33:32 2026] [::1]:44938 [200]: GET /
+[Tue Jan  6 00:33:32 2026] [::1]:44938 Closing
+[Tue Jan  6 00:33:32 2026] [::1]:44946 Accepted
+[Tue Jan  6 00:33:32 2026] [::1]:44948 Accepted
+[Tue Jan  6 00:33:32 2026] [::1]:44946 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:33:32 2026] [::1]:44946 Closing
+[Tue Jan  6 00:33:32 2026] [::1]:44948 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:33:32 2026] [::1]:44948 Closing
+[Tue Jan  6 00:33:32 2026] [::1]:44952 Accepted
+[Tue Jan  6 00:33:32 2026] [::1]:44952 [200]: GET /uploads/test_images/test.svg
+[Tue Jan  6 00:33:32 2026] [::1]:44952 Closing
