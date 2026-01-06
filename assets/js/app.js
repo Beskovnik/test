@@ -40,103 +40,169 @@
         overlay.addEventListener('click', toggleMenu);
     }
 
-    // CSRF & Request Helper
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    // CSRF Helper
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.content : '';
 
-    function request(url, options = {}) {
-        const headers = options.headers || {};
-        if (options.method && options.method.toUpperCase() === 'POST') {
-            headers['X-Requested-With'] = 'XMLHttpRequest';
-            const body = options.body;
-            if (body instanceof FormData) {
-               // FormData handles Content-Type
-            } else {
-               headers['Content-Type'] = 'application/x-www-form-urlencoded';
-            }
+    // Toast Notification Helper
+    window.showToast = window.showToast || ((type, msg) => {
+        console.log(`[${type}] ${msg}`);
+        let toast = document.getElementById('toast-container');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toast-container';
+            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;';
+            document.body.appendChild(toast);
         }
-        return fetch(url, { ...options, headers });
-    }
+        const el = document.createElement('div');
+        el.className = `toast toast-${type}`;
+        el.style.cssText = 'background:rgba(0,0,0,0.8);color:#fff;padding:10px;margin-top:5px;border-radius:4px;';
+        el.textContent = msg;
+        toast.appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+    });
 
-    // View Page Logic (Static)
-    const commentsSection = document.querySelector('.comments');
-    const likeBtn = document.querySelector('.button.like');
+    // View Page Logic
+    document.addEventListener('DOMContentLoaded', () => {
+        // Elements
+        const commentsSection = document.getElementById('commentsSection');
+        const likeBtn = document.getElementById('likeBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const shareBtn = document.getElementById('shareBtn');
+        const commentList = document.getElementById('commentList');
+        const commentForm = document.getElementById('commentForm');
+        const viewCountEl = document.getElementById('viewCount');
 
-    if (commentsSection) {
-        const postId = commentsSection.dataset.postId;
-        const commentList = commentsSection.querySelector('.comment-list');
-        const commentForm = commentsSection.querySelector('.comment-form');
+        // Determine Post ID
+        let postId = null;
+        if (commentsSection) postId = commentsSection.dataset.id;
+        else if (likeBtn) postId = likeBtn.dataset.id;
+        else if (deleteBtn) postId = deleteBtn.dataset.id;
 
-        // Load Comments
-        loadComments(postId);
+        // Exit if not on view page (no postId found)
+        if (!postId) return;
 
-        // Submit Comment
-        if (commentForm) {
-            commentForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!csrfToken) return; // Should be handled by UI check
+        // Async View Increment
+        (async () => {
+            try {
+                const res = await fetch('/api/view.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
+                });
+                const data = await res.json();
+                if (data.ok && data.views && viewCountEl) {
+                    viewCountEl.textContent = '👁️ ' + data.views;
+                }
+            } catch (e) {
+                console.error('View increment failed', e);
+            }
+        })();
 
-                const bodyInput = commentForm.querySelector('textarea');
-                const body = bodyInput.value;
-                const formData = new FormData();
-                formData.append('post_id', postId);
-                formData.append('body', body);
-                formData.append('csrf_token', csrfToken);
-
+        // Share Button
+        if (shareBtn) {
+            shareBtn.addEventListener('click', async () => {
+                const url = shareBtn.dataset.url;
+                const fullUrl = window.location.origin + url;
                 try {
-                    const res = await request('/api/comment_add.php', { method: 'POST', body: formData });
-                    if (res.ok) {
-                        bodyInput.value = '';
-                        loadComments(postId);
-                    } else {
-                        alert('Napaka pri objavi.');
-                    }
-                } catch(e) { console.error(e); }
+                    await navigator.clipboard.writeText(fullUrl);
+                    window.showToast('success', 'Povezava kopirana!');
+                } catch (err) {
+                    prompt('Kopiraj povezavo:', fullUrl);
+                }
             });
         }
 
-        async function loadComments(id) {
-            try {
-                const res = await request(`/api/comment_list.php?post_id=${id}`);
-                const data = await res.json();
-                commentList.innerHTML = '';
-                if (data.comments && data.comments.length) {
-                    data.comments.forEach(c => {
-                        const div = document.createElement('div');
-                        div.className = 'comment-item';
-                        div.innerHTML = `<strong>${c.author}</strong>: ${c.body}`;
-                        commentList.appendChild(div);
+        // Delete Button
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+                if (!confirm('Res želiš izbrisati to objavo?')) return;
+                try {
+                    const res = await fetch('/api/post_delete.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({id: postId, csrf_token: csrfToken})
                     });
-                } else {
-                    commentList.innerHTML = '<p class="no-comments">Ni komentarjev.</p>';
+                    const data = await res.json();
+                    if (data.ok) {
+                        window.location.href = '/index.php';
+                    } else {
+                        window.showToast('error', data.error || 'Napaka pri brisanju');
+                    }
+                } catch (e) {
+                    window.showToast('error', 'Napaka omrežja');
+                }
+            });
+        }
+
+        // Like Button
+        if (likeBtn) {
+            likeBtn.addEventListener('click', async () => {
+                try {
+                    const res = await fetch('/api/like.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        likeBtn.classList.toggle('active', data.liked);
+                        const icon = likeBtn.querySelector('.like-icon');
+                        const label = likeBtn.querySelector('.like-label');
+                        const count = likeBtn.querySelector('.like-count');
+
+                        if(icon) icon.textContent = data.liked ? '❤️' : '🤍';
+                        if(label) label.textContent = data.liked ? 'Všečkano' : 'Všečkaj';
+                        if(count) count.textContent = data.count;
+                    }
+                } catch (e) { console.error(e); }
+            });
+        }
+
+        // Comments Logic
+        async function loadComments() {
+            if (!commentList) return;
+            try {
+                const res = await fetch(`/api/comment_list.php?post_id=${postId}`);
+                const data = await res.json();
+                if (data.ok) {
+                    commentList.innerHTML = data.comments.map(c => `
+                        <div class="comment">
+                            <strong>${c.author}</strong>
+                            <p>${c.body}</p>
+                            <small>${new Date(c.created_at * 1000).toLocaleString()}</small>
+                        </div>
+                    `).join('') || '<p class="muted">Ni komentarjev.</p>';
                 }
             } catch (e) {
-                commentList.innerHTML = '<p class="error">Napaka pri nalaganju.</p>';
+                console.error(e);
             }
         }
-    }
 
-    if (likeBtn) {
-        likeBtn.addEventListener('click', async () => {
-             if (!csrfToken) {
-                alert('Za všečkanje se morate prijaviti.');
-                return;
-            }
-            const postId = likeBtn.dataset.postId;
-            const formData = new FormData();
-            formData.append('post_id', postId);
-            formData.append('csrf_token', csrfToken);
+        if (commentList) loadComments();
 
-            try {
-                const res = await request('/api/like.php', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.like_count !== undefined) {
-                    likeBtn.querySelector('.like-count').textContent = data.like_count;
-                    const label = likeBtn.querySelector('.like-label');
-                    if (label) label.textContent = data.liked ? 'Všečkano' : 'Všečkaj';
-                    likeBtn.classList.toggle('liked', data.liked);
+        if (commentForm) {
+            commentForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const body = this.body.value;
+                try {
+                    const res = await fetch('/api/comment_add.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({post_id: postId, body, csrf_token: csrfToken})
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        this.reset();
+                        loadComments();
+                    } else {
+                        window.showToast('error', data.error);
+                    }
+                } catch (e) {
+                    window.showToast('error', 'Napaka pri objavi komentarja');
                 }
-            } catch(e) { console.error(e); }
-        });
-    }
+            });
+        }
+    });
 
 })();
