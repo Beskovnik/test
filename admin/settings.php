@@ -12,6 +12,8 @@ $pdo = Database::connect();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
 
+    $allowedUiScales = ['0.8', '0.9', '1.0', '1.1', '1.2'];
+
     // Limits
     $maxImageGb = str_replace(',', '.', (string)$_POST['max_image_gb']);
     $maxVideoGb = str_replace(',', '.', (string)$_POST['max_video_gb']);
@@ -23,9 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validate UI Scale
     $uiScaleVal = (float)$uiScale;
-    if ($uiScaleVal < 0.8) $uiScale = '0.8';
-    elseif ($uiScaleVal > 1.2) $uiScale = '1.2';
-    // Else keep original string to preserve "1.0" format
+    $uiScale = number_format($uiScaleVal, 1, '.', '');
+    if (!in_array($uiScale, $allowedUiScales, true)) {
+        if ($uiScaleVal <= 0.8) {
+            $uiScale = '0.8';
+        } elseif ($uiScaleVal >= 1.2) {
+            $uiScale = '1.2';
+        } else {
+            $uiScale = '1.0';
+        }
+    }
 
     Settings::set($pdo, 'max_image_gb', $maxImageGb);
     Settings::set($pdo, 'max_video_gb', $maxVideoGb);
@@ -50,6 +59,11 @@ $maxVideoGb = Settings::get($pdo, 'max_video_gb', '5.0');
 $maxFiles = Settings::get($pdo, 'max_files_per_upload', '100');
 $accent = Settings::get($pdo, 'accent_color', '#4b8bff');
 $uiScale = Settings::get($pdo, 'ui_scale', '1.0');
+$allowedUiScales = ['0.8', '0.9', '1.0', '1.1', '1.2'];
+$uiScale = number_format((float)str_replace(',', '.', (string)$uiScale), 1, '.', '');
+if (!in_array($uiScale, $allowedUiScales, true)) {
+    $uiScale = '1.0';
+}
 
 // Weather Defaults
 $arsoLoc = Settings::get($pdo, 'weather_arso_location', 'Ljubljana');
