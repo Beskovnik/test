@@ -43,6 +43,7 @@ render_flash($_SESSION['flash'] ?? null); unset($_SESSION['flash']);
         <a class="button ghost" href="/admin/users.php">Uporabniki</a>
         <a class="button ghost" href="/admin/posts.php">Objave</a>
         <a class="button ghost" href="/admin/comments.php">Komentarji</a>
+        <a class="button ghost" href="/admin/audit.php">Dnevnik</a>
         <a class="button ghost" href="/admin/settings.php">Nastavitve</a>
     </div>
 
