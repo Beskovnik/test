@@ -56,6 +56,19 @@ set_exception_handler(function ($e) {
         <h1>Critical Error</h1>
         <p>" . htmlspecialchars($e->getMessage()) . "</p>
     </div>";
+
+    if (!empty($debug_log)) {
+        echo '<div id="debug-bar" style="position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#0f0; padding:10px; z-index:9999; max-height:200px; overflow-y:auto; font-family:monospace; border-top: 2px solid #0f0;">';
+        echo '<div style="font-weight:bold; border-bottom:1px solid #333; margin-bottom:5px;">DEBUG INFO</div>';
+        foreach ($debug_log as $log) {
+            echo '<div style="margin-bottom:2px;">';
+            echo '<span style="color:#ff0000;">[' . htmlspecialchars((string)$log['type']) . ']</span> ';
+            echo htmlspecialchars((string)$log['message']) . ' ';
+            echo '<span style="color:#888;">(' . htmlspecialchars((string)$log['file']) . ':' . $log['line'] . ')</span>';
+            echo '</div>';
+        }
+        echo '</div>';
+    }
 });
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -82,87 +95,5 @@ foreach ($paths as $dir) {
 
 $pdo = Database::connect();
 
-// DB Init & Schema (Using Migrator for versioning, but ensuring base tables first)
-// We keep the base table creation here to ensure the system can boot even if migrations fail or are empty.
-// However, to avoid duplication, we should rely on Migrator or these checks.
-// For robustness, I'll keep the IF NOT EXISTS checks as a safeguard.
-
-$pdo->exec(
-    'CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE,
-        pass_hash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT "user",
-        active INTEGER NOT NULL DEFAULT 1,
-        created_at INTEGER NOT NULL
-    )'
-);
-
-$pdo->exec(
-    'CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NULL, -- Made nullable to match old bootstrap
-        title TEXT,
-        description TEXT,
-        created_at INTEGER NOT NULL,
-        visibility TEXT DEFAULT "public",
-        share_token TEXT,
-        type TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        thumb_path TEXT,
-        preview_path TEXT,
-        mime TEXT,
-        size_bytes INTEGER,
-        width INTEGER,
-        height INTEGER,
-        views INTEGER DEFAULT 0,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
-    )'
-);
-
-$pdo->exec(
-    'CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER NOT NULL,
-        user_id INTEGER NULL,
-        author_name TEXT NULL, -- Added to match old bootstrap
-        body TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        status TEXT NOT NULL DEFAULT "visible",
-        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
-    )'
-);
-
-$pdo->exec(
-    'CREATE TABLE IF NOT EXISTS likes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, -- Added ID for consistency
-        user_id INTEGER NOT NULL,
-        post_id INTEGER NOT NULL,
-        created_at INTEGER NOT NULL,
-        UNIQUE(user_id, post_id),
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
-    )'
-);
-
-$pdo->exec(
-    'CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    )'
-);
-
-$pdo->exec(
-    'CREATE TABLE IF NOT EXISTS audit_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        admin_user_id INTEGER,
-        action TEXT,
-        meta TEXT,
-        created_at INTEGER
-    )'
-);
-
-// Apply migrations
+// Ensure DB Schema via Migrations
 Migrator::migrate($pdo);
