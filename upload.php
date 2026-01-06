@@ -22,24 +22,33 @@ $maxVideoBytes = $maxVideoGb * 1024 * 1024 * 1024;
 
 render_header('Naloži datoteke', $user, 'upload');
 ?>
-<div class="upload-page">
-    <div class="uploader-container">
-        <div class="drop-zone" id="dropZone">
-            <div class="drop-content">
-                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                <h2 class="upload-title">Povleči datoteke sem</h2>
-                <p class="upload-subtitle">ali tapni za izbor (max <?php echo $maxFiles; ?>)</p>
-                <input type="file" id="fileInput" name="files[]" multiple accept="image/*,video/*" class="file-input" style="display:none;">
-            </div>
-            <div class="upload-limits" style="margin-top:1.5rem; color:var(--muted); font-size:0.9rem;">
-                Max slika: <?php echo $maxImageGb; ?> GB • Max video: <?php echo $maxVideoGb; ?> GB • Max: <?php echo $maxFiles; ?> datotek
-            </div>
+<div class="admin-page">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; margin:0;">Naloži datoteke</h1>
+        <div class="admin-nav" style="display:flex; gap:0.5rem;">
+             <a class="button ghost" href="index.php">← Galerija</a>
         </div>
-        <div class="upload-list" id="uploadList"></div>
+    </div>
+
+    <div class="card" style="padding: 2rem;">
+        <div class="uploader-container">
+            <div class="drop-zone" id="dropZone" style="border: 2px dashed var(--border); background: rgba(255,255,255,0.02);">
+                <div class="drop-content">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <h2 class="upload-title">Povleči datoteke sem</h2>
+                    <p class="upload-subtitle">ali tapni za izbor (max <?php echo $maxFiles; ?>)</p>
+                    <input type="file" id="fileInput" name="files[]" multiple accept="image/*,video/*" class="file-input" style="display:none;">
+                </div>
+                <div class="upload-limits" style="margin-top:1.5rem; color:var(--muted); font-size:0.9rem;">
+                    Max slika: <?php echo $maxImageGb; ?> GB • Max video: <?php echo $maxVideoGb; ?> GB • Max: <?php echo $maxFiles; ?> datotek
+                </div>
+            </div>
+            <div class="upload-list" id="uploadList"></div>
+        </div>
     </div>
 </div>
 <script>
