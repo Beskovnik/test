@@ -67,6 +67,10 @@ if (!$posts && $page === 1) {
     echo '<div style="padding:4rem;text-align:center;color:var(--muted);font-size:1.2rem;">Ni objav. Naložite prve fotografije ali videe!</div>';
 }
 
+// Pre-calculate fallback for robustness
+$fallback = '/assets/img/placeholder.svg';
+$jsFallback = json_encode($fallback);
+
 foreach ($grouped as $label => $items) {
     echo '<section class="time-group">';
     echo '<h2 style="padding: 1rem 2rem; color: var(--muted); font-size: 1.1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem;">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
@@ -83,11 +87,9 @@ foreach ($grouped as $label => $items) {
 
         $title = $id . ' ' . ($item['type'] === 'video' ? 'video' : 'slika');
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
-        $fallback = '/assets/img/placeholder.svg';
 
         // Robust handler: Try original if thumb fails (images only), then placeholder
         $jsOriginal = json_encode($original);
-        $jsFallback = json_encode($fallback);
 
         $onError = "this.onerror=null;this.src=$jsFallback";
         if ($item['type'] === 'image') {
