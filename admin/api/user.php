@@ -25,7 +25,6 @@ if (!$input) {
 }
 
 // CSRF Check
-// The frontend (admin.js) sends csrf_token in body
 $token = $input['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
 if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
     Response::error('Invalid CSRF Token', 'CSRF_ERROR', 403);
@@ -37,23 +36,29 @@ $pdo = Database::connect();
 if ($action === 'add') {
     $u = trim($input['username'] ?? '');
     $p = $input['password'] ?? '';
+    $email = trim($input['email'] ?? '');
     $r = $input['role'] ?? 'user';
-    $a = !empty($input['active']) ? 1 : 0;
+    $a = isset($input['active']) && $input['active'] ? 1 : 0;
 
     if (strlen($u) < 3 || strlen($p) < 8) {
         Response::error('Uporabniško ime (min 3) ali geslo (min 8) je prekratko.');
     }
 
+    // Validate username regex
+    if (!preg_match('/^[a-zA-Z0-9_-]+$/', $u)) {
+        Response::error('Uporabniško ime lahko vsebuje le črke, številke, pomišljaje in podčrtaje.');
+    }
+
     // Check exist
-    $stmt = $pdo->prepare('SELECT id FROM users WHERE username = ?');
-    $stmt->execute([$u]);
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE username = ? OR (email IS NOT NULL AND email = ?)');
+    $stmt->execute([$u, $email ?: '']);
     if ($stmt->fetch()) {
-        Response::error('Uporabnik že obstaja.');
+        Response::error('Uporabnik ali email že obstaja.');
     }
 
     $h = password_hash($p, PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare('INSERT INTO users (username, pass_hash, role, active, created_at) VALUES (?, ?, ?, ?, ?)');
-    $stmt->execute([$u, $h, $r, $a, time()]);
+    $stmt = $pdo->prepare('INSERT INTO users (username, email, pass_hash, role, active, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+    $stmt->execute([$u, $email ?: null, $h, $r, $a, time()]);
 
     Audit::log($pdo, $user['id'], 'user_add', "Added user $u");
     Response::json(['message' => 'Uporabnik dodan.']);
@@ -61,6 +66,7 @@ if ($action === 'add') {
 } elseif ($action === 'toggle') {
     $id = (int)($input['id'] ?? 0);
     if (!$id) Response::error('Manjka ID');
+    if ($id === $user['id']) Response::error('Ne morete blokirati samega sebe.');
 
     // Get current
     $stmt = $pdo->prepare('SELECT active FROM users WHERE id = ?');

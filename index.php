@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/app/Bootstrap.php';
+require __DIR__ . '/includes/layout.php'; // Required for render_header
 
 use App\Auth;
 use App\Database;
@@ -59,18 +60,16 @@ foreach ($posts as $post) {
     $grouped[time_group_label((int)$post['created_at'])][] = $post;
 }
 
-// Render
-require __DIR__ . '/includes/layout.php';
-
-render_header('Galerija', $user);
+// Render Header
+render_header('Galerija', $user, $typeFilter === 'video' ? 'videos' : 'feed');
 
 if (!$posts && $page === 1) {
-    echo '<div class="empty-state">Ni objav. Naložite prve fotografije ali videe!</div>';
+    echo '<div style="padding:4rem;text-align:center;color:var(--muted);font-size:1.2rem;">Ni objav. Naložite prve fotografije ali videe!</div>';
 }
 
 foreach ($grouped as $label => $items) {
     echo '<section class="time-group">';
-    echo '<h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
+    echo '<h2 style="padding: 1rem 2rem; color: var(--muted); font-size: 1.1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem;">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
     echo '<div class="grid">';
     foreach ($items as $item) {
         $id = (int)$item['id'];
@@ -113,9 +112,9 @@ foreach ($grouped as $label => $items) {
 // Sentinel for Infinite Scroll
 if (count($posts) > 0) {
     echo '<div id="scroll-sentinel" data-next-page="' . ($page + 1) . '" data-has-more="' . (count($posts) === $perPage ? 'true' : 'false') . '"></div>';
-    echo '<div class="loading-spinner hidden" id="feed-loader">Nalaganje...</div>';
+    echo '<div class="loading-spinner hidden" id="feed-loader" style="text-align:center;padding:2rem;color:var(--muted);">Nalaganje...</div>';
 } else {
-    echo '<div class="no-more-posts">Ni več objav.</div>';
+    echo '<div class="no-more-posts" style="text-align:center;padding:2rem;color:var(--muted);">Ni več objav.</div>';
 }
 
 render_footer();

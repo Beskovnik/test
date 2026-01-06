@@ -65,6 +65,7 @@ class Media
                 return true;
             } catch (Exception $e) {
                 // Fallback
+                error_log("Imagick error: " . $e->getMessage());
             }
         }
 
@@ -112,20 +113,45 @@ class Media
         return $res;
     }
 
+    public static function generatePlaceholderThumb(string $target): bool
+    {
+        if (!extension_loaded('gd') || !function_exists('imagecreatetruecolor')) {
+            return false;
+        }
+
+        $width = 480;
+        $height = 270;
+        $image = imagecreatetruecolor($width, $height);
+        if (!$image) {
+            return false;
+        }
+
+        $bg = imagecolorallocate($image, 28, 31, 36);
+        $fg = imagecolorallocate($image, 200, 200, 200);
+        imagefilledrectangle($image, 0, 0, $width, $height, $bg);
+        imagestring($image, 5, 140, 120, 'Video Preview', $fg);
+        $result = imagejpeg($image, $target, 82);
+        imagedestroy($image);
+        return $result;
+    }
+
     public static function generateVideoThumb(string $source, string $target, int $maxWidth = 480): bool
     {
         if (self::isFfmpegAvailable()) {
             // Seek to 0.1s instead of 1s to better handle short videos
+            // Fixed the duplicated format string bug
             $cmd = sprintf(
-                'ffmpeg -y -ss 1 -i %s -frames:v 1 -vf "scale=\'min(%d,iw)\':-2" %s 2>&1',
                 'ffmpeg -y -ss 0.1 -i %s -frames:v 1 -vf "scale=\'min(%d,iw)\':-1" %s 2>&1',
                 escapeshellarg($source),
                 $maxWidth,
                 escapeshellarg($target)
             );
             shell_exec($cmd);
-            return file_exists($target) && filesize($target) > 0;
+            if (file_exists($target) && filesize($target) > 0) {
+                return true;
+            }
         }
-        return false; // Or placeholder
+        // Fallback to placeholder if FFmpeg fails or is missing
+        return self::generatePlaceholderThumb($target);
     }
 }

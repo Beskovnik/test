@@ -14,8 +14,7 @@ if (!isset($input['post_id'])) {
     Response::error('Missing post_id');
 }
 
-// CSRF Check logic needed for JSON input if not standard form
-// We assume client sends csrf_token in body
+// CSRF Check
 $token = $input['csrf_token'] ?? '';
 if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
     Response::error('CSRF Error', 'CSRF', 403);
@@ -26,13 +25,17 @@ $pdo = Database::connect();
 
 try {
     // Check if liked
-    $stmt = $pdo->prepare('SELECT id FROM likes WHERE post_id = ? AND user_id = ?');
+    // Note: 'likes' table schema was updated to composite primary key (user_id, post_id) in Bootstrap,
+    // but legacy schema might have 'id'.
+    // Let's use user_id AND post_id for deletion to be safe for both.
+
+    $stmt = $pdo->prepare('SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?');
     $stmt->execute([$postId, $user['id']]);
     $existing = $stmt->fetch();
 
     if ($existing) {
         // Unlike
-        $pdo->prepare('DELETE FROM likes WHERE id = ?')->execute([$existing['id']]);
+        $pdo->prepare('DELETE FROM likes WHERE post_id = ? AND user_id = ?')->execute([$postId, $user['id']]);
         $liked = false;
     } else {
         // Like
