@@ -34,23 +34,10 @@ $isPublic = ($post['visibility'] ?? 'private') === 'public';
 // Check if accessed via valid share token containing this item
 $hasAccess = $isOwner || $isPublic;
 
-// Logic for share token access would typically go here if we were using a session or specific token param for individual item access.
-// Since the prompt asks for strict access, if not owner and not public, deny.
-// EXCEPTION: If the user came from a share link /s/<token>, they might not be logged in.
-// But `view.php` requires login (`Auth::requireLogin()`) at the top.
-// The PROMPT says: "Direktni view (view.php?id=XYZ): Če current_user ni lastnik: dovoli samo če visibility='public' ali če je dostop prek share tokena..."
-// However, `view.php` currently redirects to login if not logged in.
-// If we want to support viewing shared items here, we must allow `view.php` to work without login IF a share token is present?
-// Or maybe the shared view happens ONLY in `share.php` / `/s/` and `view.php` is strictly for the app interface?
-// "C) Direktni view (view.php?id=XYZ): ... ali če je dostop prek share tokena"
-// This implies `view.php` handles it.
-// I should relax `Auth::requireLogin()` if a share context is provided?
-// No, the prompt explicitly asked for a NEW PAGE "/s/<token>" for sharing.
-// "Nova stran: Shared /s/<token> ... Vsebina strani: ... modal viewer".
-// So `view.php` is likely internal app view.
-// But if I want to allow logged-in users to view shared items via `view.php`, I need to check `share_items`.
-// Let's implement strict checking:
 if (!$hasAccess) {
+    if ($user['role'] !== 'admin') {
+         http_response_code(403);
+         die("Dostop zavrnjen. Ta vsebina je zasebna.");
     // Check if this item is part of a share that the user might have access to?
     // The user might have a valid share token in session?
     // Or maybe we just deny for now.
@@ -94,7 +81,7 @@ if ($post['type'] === 'video') {
     $p = htmlspecialchars($previewSrc);
     $o = htmlspecialchars($originalSrc);
     // Click to load full res if different, or just zoom
-    $mediaHtml = "<img src=\"{$p}\" data-original=\"{$o}\" alt=\"{$title}\" class=\"preview-image\" loading=\"lazy\" onclick=\"this.src=this.dataset.original; this.classList.remove('preview-image');\" style=\"max-width:100%;max-height:100%;object-fit:contain;\">";
+    $mediaHtml = "<img src=\"{$p}\" data-original=\"{$o}\" alt=\"{$title}\" class=\"preview-image\" loading=\"lazy\" onclick=\"this.src=this.dataset.original; this.classList.remove('preview-image');\" style=\"max-width:100%;max-height:100%;object-fit:contain;image-orientation:from-image;\">";
 }
 
 $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
@@ -122,9 +109,9 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
                 <span class="like-label"><?php echo $liked ? 'Všečkano' : 'Všečkaj'; ?></span>
                 <span class="like-count" style="margin-left:auto; background:rgba(255,255,255,0.1); padding:0.1rem 0.5rem; border-radius:1rem;"><?php echo $likeCount; ?></span>
             </button>
-            <button class="button ghost" id="shareBtn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
+            <button class="button ghost js-share-btn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
             <?php if ($user && ($user['role'] === 'admin' || $user['id'] === $post['user_id'])): ?>
-                <button class="button danger" id="deleteBtn" data-id="<?php echo $post['id']; ?>">Izbriši 🗑️</button>
+                <button class="button danger js-delete-btn" data-id="<?php echo $post['id']; ?>">Izbriši 🗑️</button>
             <?php endif; ?>
 
             <?php if ($isOwner): ?>
@@ -135,11 +122,11 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
                         <option value="public" <?php echo ($post['visibility'] === 'public') ? 'selected' : ''; ?>>🌍 Javno</option>
                     </select>
 
-                    <button class="button ghost" id="shareBtn" onclick="openShareModal([<?php echo $post['id']; ?>])" style="flex:1;">
+                    <button class="button ghost js-share-btn" data-url="<?php echo $shareUrl; ?>" style="flex:1;">
                         Deli <span class="material-icons" style="font-size:1rem;margin-left:0.5rem;">share</span>
                     </button>
                 </div>
-                <button class="button danger icon-only" id="deleteBtn" data-id="<?php echo $post['id']; ?>" title="Izbriši"><span class="material-icons">delete</span></button>
+                <button class="button danger icon-only js-delete-btn" data-id="<?php echo $post['id']; ?>" title="Izbriši"><span class="material-icons">delete</span></button>
             <?php endif; ?>
         </div>
 
