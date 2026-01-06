@@ -74,6 +74,7 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
         echo '</div>';
     } else {
         echo '<a class="link" href="/login.php">Prijava</a>';
+        echo '<a class="button small" href="/register.php">Registracija</a>';
     }
     echo '</div>';
     echo '</header>';

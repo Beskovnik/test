@@ -4,9 +4,10 @@ require __DIR__ . '/app/Bootstrap.php';
 use App\Auth;
 use App\Settings;
 
-// $user = Auth::requireLogin(); // Do NOT require login on login page, causes loop
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Legacy redirect for login form
+    // CSRF check
+    verify_csrf();
+
     $username = $_POST['identifier'] ?? '';
     $password = $_POST['password'] ?? '';
 
@@ -40,6 +41,10 @@ render_header('Prijava', null);
         <input type="password" name="password" required>
 
         <button class="button" type="submit">Prijavi se</button>
+
+        <p style="margin-top: 1rem; text-align: center; color: var(--muted);">
+            Nimaš računa? <a href="/register.php" style="color: var(--accent);">Registracija</a>
+        </p>
     </form>
 </div>
 <?php
