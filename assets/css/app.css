@@ -472,6 +472,39 @@ td {
     cursor: pointer;
 }
 
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: rgba(30, 30, 40, 0.95);
+    backdrop-filter: blur(16px);
+    color: #fff;
+    padding: 1rem 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.1);
+    z-index: 1000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.toast-success {
+    border-left: 4px solid var(--accent);
+}
+
+.toast-error {
+    border-left: 4px solid var(--danger);
+}
 .drop-zone:hover {
     border-color: var(--accent);
     background: rgba(109, 93, 252, 0.05);

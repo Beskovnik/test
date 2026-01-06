@@ -118,6 +118,9 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
                 <span class="like-label"><?php echo $liked ? 'Všečkano' : 'Všečkaj'; ?></span>
                 <span class="like-count" style="margin-left:auto; background:rgba(255,255,255,0.1); padding:0.1rem 0.5rem; border-radius:1rem;"><?php echo $likeCount; ?></span>
             </button>
+            <button class="button ghost" id="shareBtn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
+            <?php if ($user && ($user['role'] === 'admin' || $user['id'] === $post['user_id'])): ?>
+                <button class="button danger" id="deleteBtn" data-id="<?php echo $post['id']; ?>">Izbriši 🗑️</button>
 
             <?php if ($isOwner): ?>
                 <div style="flex:1; display:flex; gap:0.5rem;">
