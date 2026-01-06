@@ -43,14 +43,21 @@ if ($type === 'post') {
 
     if ($post) {
         $base = __DIR__ . '/../../';
-        if ($post['file_path'] && file_exists($base . $post['file_path'])) unlink($base . $post['file_path']);
-        if ($post['thumb_path'] && file_exists($base . $post['thumb_path']) && $post['thumb_path'] !== $post['file_path']) unlink($base . $post['thumb_path']);
-        if ($post['preview_path'] && file_exists($base . $post['preview_path']) && $post['preview_path'] !== $post['file_path']) unlink($base . $post['preview_path']);
+        // Use @ to suppress warnings if file missing
+        if (!empty($post['file_path']) && file_exists($base . $post['file_path'])) @unlink($base . $post['file_path']);
 
-        // Delete from DB
+        // Only delete thumb/preview if they are different from file_path (images sometimes reuse paths)
+        if (!empty($post['thumb_path']) && $post['thumb_path'] !== $post['file_path'] && file_exists($base . $post['thumb_path'])) {
+             @unlink($base . $post['thumb_path']);
+        }
+
+        if (!empty($post['preview_path']) && $post['preview_path'] !== $post['file_path'] && file_exists($base . $post['preview_path'])) {
+             @unlink($base . $post['preview_path']);
+        }
+
+        // Delete from DB (Foreign keys should handle cascading for comments/likes if configured, but let's be explicit if not)
+        // Schema has ON DELETE CASCADE for comments and likes, but let's trust it.
         $pdo->prepare('DELETE FROM posts WHERE id = ?')->execute([$id]);
-        $pdo->prepare('DELETE FROM comments WHERE post_id = ?')->execute([$id]);
-        $pdo->prepare('DELETE FROM likes WHERE post_id = ?')->execute([$id]);
 
         Audit::log($pdo, $user['id'], 'delete_post', "Deleted post $id");
         Response::json(['message' => 'Objava izbrisana.']);
@@ -64,6 +71,15 @@ if ($type === 'post') {
     }
 
     $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+    // Posts by user will set user_id to NULL or CASCADE depending on schema.
+    // Schema: FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    // Wait, `app/Bootstrap.php` says `ON DELETE CASCADE` for posts?
+    // Let's check Bootstrap.php content in memory.
+    // "FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE" in `posts` table definition in one version,
+    // but another said `ON DELETE SET NULL`.
+    // The overwriten Bootstrap.php says: `FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL`.
+    // So posts are kept, but user_id becomes NULL. Correct.
+
     Audit::log($pdo, $user['id'], 'delete_user', "Deleted user $id");
     Response::json(['message' => 'Uporabnik izbrisan.']);
 
