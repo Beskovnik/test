@@ -35,21 +35,17 @@ $isPublic = ($post['visibility'] ?? 'private') === 'public';
 $hasAccess = $isOwner || $isPublic;
 
 if (!$hasAccess) {
-    if ($user['role'] !== 'admin') {
-         http_response_code(403);
-         die("Dostop zavrnjen. Ta vsebina je zasebna.");
-    // Check if this item is part of a share that the user might have access to?
-    // The user might have a valid share token in session?
-    // Or maybe we just deny for now.
-    // The Prompt says: "Direktni view... Če current_user ni lastnik... 403/404"
-    // I will enforce this.
+    // If user is not logged in, redirect to login
     if (!$user) {
         header('Location: /login.php');
         exit;
     }
-    if ($user['role'] !== 'admin') { // Admins might see everything? Prompt implies strict owner filtering.
-        http_response_code(403);
-        die("Dostop zavrnjen. Ta vsebina je zasebna.");
+
+    // If user is logged in but not admin, deny access
+    // Admins are allowed to see everything
+    if (($user['role'] ?? '') !== 'admin') {
+         http_response_code(403);
+         die("Dostop zavrnjen. Ta vsebina je zasebna.");
     }
 }
 
