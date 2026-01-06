@@ -43,6 +43,10 @@ render_header('Prijava', null);
 
         <label for="password">Geslo</label>
         <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+        <input type="text" id="identifier" name="identifier" autocomplete="username" required <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
+
+        <label for="password">Geslo</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
 
         <button class="button" type="submit" style="margin-top: 1rem; width: 100%; justify-content: center;">Prijavi se</button>
 
