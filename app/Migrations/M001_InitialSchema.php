@@ -26,7 +26,7 @@ class M001_InitialSchema
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
+                user_id INTEGER NULL, -- Made nullable to match old bootstrap
                 title TEXT,
                 description TEXT,
                 created_at INTEGER NOT NULL,
@@ -41,7 +41,7 @@ class M001_InitialSchema
                 width INTEGER,
                 height INTEGER,
                 views INTEGER DEFAULT 0,
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
             )'
         );
 
@@ -50,21 +50,24 @@ class M001_InitialSchema
             'CREATE TABLE IF NOT EXISTS comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 post_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
+                user_id INTEGER NULL,
+                author_name TEXT NULL, -- Added to match old bootstrap
                 body TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT "visible",
                 FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
             )'
         );
 
         // Likes
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS likes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, -- Added ID for consistency
                 user_id INTEGER NOT NULL,
                 post_id INTEGER NOT NULL,
                 created_at INTEGER NOT NULL,
-                PRIMARY KEY (user_id, post_id),
+                UNIQUE(user_id, post_id),
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
             )'
@@ -80,7 +83,7 @@ class M001_InitialSchema
 
         // Audit Log
         $pdo->exec(
-            'CREATE TABLE IF NOT EXISTS audit_log (
+            'CREATE TABLE IF NOT EXISTS audit_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 admin_user_id INTEGER,
                 action TEXT,

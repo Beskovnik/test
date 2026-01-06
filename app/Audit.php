@@ -7,17 +7,6 @@ use PDO;
 
 class Audit
 {
-    public static function ensureTableExists(PDO $pdo): void
-    {
-        $pdo->exec('CREATE TABLE IF NOT EXISTS audit_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            admin_user_id INTEGER,
-            action TEXT,
-            meta TEXT,
-            created_at INTEGER
-        )');
-    }
-
     public static function log(PDO $pdo, int $adminId, string $action, string $meta = ''): void
     {
         // Table existence is guaranteed by Bootstrap.php
