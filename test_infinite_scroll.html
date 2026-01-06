@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Infinite Scroll</title>
+</head>
+<body>
+    <div id="content">
+        <section class="time-group">
+            <h2>Danes</h2>
+            <div class="grid">
+                <div class="card">Item 1</div>
+            </div>
+        </section>
+    </div>
+
+    <div id="scroll-sentinel" data-next-page="2" data-has-more="true"></div>
+    <div id="feed-loader" class="hidden">Loading...</div>
+
+    <script>
+        // Mock fetch
+        window.fetch = async (url) => {
+            console.log('Fetching', url);
+            return {
+                text: async () => `
+                    <section class="time-group">
+                        <h2>Danes</h2>
+                        <div class="grid">
+                            <div class="card">Item 2</div>
+                        </div>
+                    </section>
+                    <section class="time-group">
+                        <h2>Včeraj</h2>
+                        <div class="grid">
+                            <div class="card">Item 3</div>
+                        </div>
+                    </section>
+                    <div id="scroll-sentinel" data-next-page="3" data-has-more="true"></div>
+                `
+            };
+        };
+
+        // JS logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const sentinel = document.getElementById('scroll-sentinel');
+            const loader = document.getElementById('feed-loader');
+
+            if (!sentinel) return;
+
+            let nextPage = parseInt(sentinel.dataset.nextPage);
+            let hasMore = sentinel.dataset.hasMore === 'true';
+            let loading = false;
+
+            async function loadMore() {
+                if (hasMore && !loading) {
+                    loading = true;
+                    if (loader) loader.classList.remove('hidden');
+
+                    try {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('page', nextPage);
+
+                        const response = await fetch(url.toString());
+                        const text = await response.text();
+
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(text, 'text/html');
+
+                        const newGroups = doc.querySelectorAll('.time-group');
+
+                        if (newGroups.length > 0) {
+                            newGroups.forEach(group => {
+                                const allGroups = document.querySelectorAll('.time-group');
+                                const lastGroup = allGroups.length > 0 ? allGroups[allGroups.length - 1] : null;
+                                const groupTitle = group.querySelector('h2').textContent;
+
+                                if (lastGroup && lastGroup.querySelector('h2').textContent === groupTitle) {
+                                    console.log('Merging group:', groupTitle);
+                                    const sourceGrid = group.querySelector('.grid');
+                                    const targetGrid = lastGroup.querySelector('.grid');
+
+                                    while (sourceGrid.firstChild) {
+                                        targetGrid.appendChild(sourceGrid.firstChild);
+                                    }
+                                } else {
+                                    console.log('Appending new group:', groupTitle);
+                                    sentinel.parentNode.insertBefore(group, sentinel);
+                                }
+                            });
+
+                            nextPage++;
+                            sentinel.dataset.nextPage = nextPage;
+                            hasMore = false;
+                        }
+                    } catch (err) {
+                        console.error('Failed', err);
+                    } finally {
+                        loading = false;
+                        if (loader) loader.classList.add('hidden');
+                    }
+                }
+            }
+
+            // Trigger immediately for test
+            loadMore();
+        });
+    </script>
+</body>
+</html>

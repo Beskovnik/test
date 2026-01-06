@@ -34,9 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Check if last group on page has same title (date)
                         const allGroups = document.querySelectorAll('.time-group');
                         const lastGroup = allGroups.length > 0 ? allGroups[allGroups.length - 1] : null;
-                        const groupTitle = group.querySelector('h2').textContent;
+                        const groupTitleEl = group.querySelector('h2');
+                        const groupTitle = groupTitleEl ? groupTitleEl.textContent : null;
 
-                        if (lastGroup && lastGroup.querySelector('h2').textContent === groupTitle) {
+                        const lastGroupTitleEl = lastGroup ? lastGroup.querySelector('h2') : null;
+                        const lastGroupTitle = lastGroupTitleEl ? lastGroupTitleEl.textContent : null;
+
+                        if (lastGroup && groupTitle && lastGroupTitle === groupTitle) {
                             // Merge grids by moving elements (preserves events/state)
                             const sourceGrid = group.querySelector('.grid');
                             const targetGrid = lastGroup.querySelector('.grid');
