@@ -3,9 +3,14 @@
     const fileInput = document.getElementById('fileInput');
     const uploadList = document.getElementById('uploadList');
 
-    // Config
-    const MAX_FILES = 10;
-    const MAX_SIZE_BYTES = 50 * 1024 * 1024 * 1024; // 50GB
+    // Config from Server
+    const LIMITS = window.APP_LIMITS || {
+        maxFiles: 10,
+        maxImageBytes: 5 * 1024 * 1024 * 1024,
+        maxVideoBytes: 5 * 1024 * 1024 * 1024,
+        maxImageGb: 5,
+        maxVideoGb: 5
+    };
 
     // State
     let activeUploads = 0;
@@ -98,9 +103,22 @@
     function startUpload(uploadItem) {
         const { file, element, fill, badge, percentEl, speedEl, etaEl, cancelBtn } = uploadItem;
 
-        // 1. Validate Size
-        if (file.size > MAX_SIZE_BYTES) {
-            markError(uploadItem, 'Prevelika datoteka (>50GB)');
+        // 1. Validate Size based on type
+        let isVideo = file.type.startsWith('video/');
+        let isImage = file.type.startsWith('image/');
+        let limitBytes = isVideo ? LIMITS.maxVideoBytes : LIMITS.maxImageBytes;
+        let limitGb = isVideo ? LIMITS.maxVideoGb : LIMITS.maxImageGb;
+
+        // Fallback for unknown types if needed, or assume image limit
+        if (!isVideo && !isImage) {
+            // Treat strictly or default to image limit? Prompt implied separate limits.
+            // Let's use image limit for others as "strict" default
+            limitBytes = LIMITS.maxImageBytes;
+            limitGb = LIMITS.maxImageGb;
+        }
+
+        if (file.size > limitBytes) {
+            markError(uploadItem, `Prevelika datoteka (Max ${limitGb} GB)`);
             return;
         }
 
@@ -219,11 +237,11 @@
         }
 
         // Limit concurrent selection count
-        const filesToUpload = Array.from(fileList).slice(0, MAX_FILES);
-
-        if (fileList.length > MAX_FILES) {
-            alert(`Izbrali ste preveč datotek. Naloženo bo prvih ${MAX_FILES}.`);
+        if (fileList.length > LIMITS.maxFiles) {
+            alert(`Izbrali ste preveč datotek. Max: ${LIMITS.maxFiles}. Naloženo bo prvih ${LIMITS.maxFiles}.`);
         }
+
+        const filesToUpload = Array.from(fileList).slice(0, LIMITS.maxFiles);
 
         filesToUpload.forEach(file => {
             const uiItem = createUploadItem(file);

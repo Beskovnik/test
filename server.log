@@ -44,3 +44,81 @@
 [Tue Jan  6 00:33:32 2026] [::1]:44952 Accepted
 [Tue Jan  6 00:33:32 2026] [::1]:44952 [200]: GET /uploads/test_images/test.svg
 [Tue Jan  6 00:33:32 2026] [::1]:44952 Closing
+[Tue Jan  6 00:57:07 2026] [::1]:43328 Accepted
+[Tue Jan  6 00:57:07 2026] [::1]:43328 [200]: GET /login.php
+[Tue Jan  6 00:57:07 2026] [::1]:43328 Closing
+[Tue Jan  6 00:57:07 2026] [::1]:43340 Accepted
+[Tue Jan  6 00:57:07 2026] [::1]:43346 Accepted
+[Tue Jan  6 00:57:07 2026] [::1]:43340 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:57:07 2026] [::1]:43346 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:57:07 2026] [::1]:43340 Closing
+[Tue Jan  6 00:57:07 2026] [::1]:43346 Closing
+[Tue Jan  6 00:57:49 2026] [::1]:32844 Accepted
+[Tue Jan  6 00:57:49 2026] [::1]:32844 [200]: GET /login.php
+[Tue Jan  6 00:57:49 2026] [::1]:32844 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33842 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33842 [200]: GET /login.php
+[Tue Jan  6 00:58:50 2026] [::1]:33842 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33848 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33854 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33848 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:58:50 2026] [::1]:33854 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:58:50 2026] [::1]:33848 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33854 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33858 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33858 [302]: POST /login.php
+[Tue Jan  6 00:58:50 2026] [::1]:33858 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33872 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33872 [200]: GET /index.php
+[Tue Jan  6 00:58:50 2026] [::1]:33872 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33886 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33900 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33886 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:58:50 2026] [::1]:33900 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:58:50 2026] [::1]:33886 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33900 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33910 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33910 [200]: GET /admin/settings.php
+[Tue Jan  6 00:58:50 2026] [::1]:33910 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33916 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33916 [200]: GET /uploads/test_images/test.svg
+[Tue Jan  6 00:58:50 2026] [::1]:33916 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33932 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33936 Accepted
+[Tue Jan  6 00:58:50 2026] [::1]:33932 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:58:50 2026] [::1]:33936 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:58:50 2026] [::1]:33932 Closing
+[Tue Jan  6 00:58:50 2026] [::1]:33936 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:33938 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:33938 [302]: POST /admin/settings.php
+[Tue Jan  6 00:58:51 2026] [::1]:33938 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:33950 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:33950 [200]: GET /admin/settings.php
+[Tue Jan  6 00:58:51 2026] [::1]:33950 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:33966 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:33982 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:33966 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:58:51 2026] [::1]:33982 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:58:51 2026] [::1]:33966 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:33982 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:33984 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:33984 [200]: GET /admin/settings.php
+[Tue Jan  6 00:58:51 2026] [::1]:33984 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:33992 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:34004 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:33992 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:58:51 2026] [::1]:34004 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:58:51 2026] [::1]:33992 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:34004 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:34012 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:34012 [200]: GET /upload.php
+[Tue Jan  6 00:58:51 2026] [::1]:34012 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:34018 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:34026 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:34036 Accepted
+[Tue Jan  6 00:58:51 2026] [::1]:34018 [200]: GET /assets/css/app.css
+[Tue Jan  6 00:58:51 2026] [::1]:34026 [200]: GET /assets/js/uploader.js
+[Tue Jan  6 00:58:51 2026] [::1]:34036 [200]: GET /assets/js/app.js
+[Tue Jan  6 00:58:51 2026] [::1]:34018 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:34026 Closing
+[Tue Jan  6 00:58:51 2026] [::1]:34036 Closing
