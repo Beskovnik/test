@@ -150,6 +150,53 @@ try {
     send_error_response('Exception: ' . $e->getMessage(), 'EXCEPTION', 500);
 }
 
+// Robust MIME detection function
+function get_real_mime_type($path) {
+    // 1. Primary: FileInfo
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($path);
+
+    // If it looks valid, return it
+    if ($mime && $mime !== 'application/octet-stream' && $mime !== 'application/x-empty') {
+        return $mime;
+    }
+
+    // 2. Secondary: Magic Bytes (Manual Fallback)
+    $handle = @fopen($path, 'rb');
+    if (!$handle) {
+        return 'application/octet-stream';
+    }
+    $bytes = fread($handle, 12); // Read first 12 bytes
+    fclose($handle);
+
+    if ($bytes === false || strlen($bytes) < 4) {
+        return 'application/octet-stream';
+    }
+
+    $hex = bin2hex($bytes);
+
+    // Image signatures
+    if (str_starts_with($hex, 'ffd8ff')) return 'image/jpeg';
+    if (str_starts_with($hex, '89504e470d0a1a0a')) return 'image/png';
+    if (str_starts_with($hex, '47494638')) return 'image/gif';
+    if (str_starts_with($hex, '52494646') && substr($hex, 16, 8) === '57454250') return 'image/webp'; // RIFF....WEBP
+
+    // Video signatures
+    // MP4/QuickTime (ftyp) - often starts at offset 4
+    if (substr($hex, 8, 8) === '66747970') return 'video/mp4'; // ftyp
+    // MKV/WebM
+    if (str_starts_with($hex, '1a45dfa3')) return 'video/x-matroska';
+
+    // Optional: Command line file (if enabled/available) - User said optional optimization
+    // exec("file -b --mime-type " . escapeshellarg($path), $output, $returnCode);
+    // if ($returnCode === 0 && !empty($output[0])) {
+    //    return trim($output[0]);
+    // }
+
+    // Return the finfo result if everything else fails (likely octet-stream)
+    return $mime;
+}
+
 function processFile($sourcePath, $originalName, $fileSize, $user) {
     global $pdo;
 
@@ -169,9 +216,22 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
         send_error_response('Blocked file type', 'BLOCKED_TYPE');
     }
 
-    // Verify MIME type server-side
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $realMime = $finfo->file($sourcePath);
+    // Verify MIME type server-side with fallback
+    $realMime = get_real_mime_type($sourcePath);
+
+    // If still octet-stream, try to guess from extension if secure
+    if ($realMime === 'application/octet-stream') {
+        // Only trust extension if we really couldn't detect anything, but usually get_real_mime_type should catch it.
+        // We will log this edge case.
+        if (defined('DEBUG') && DEBUG) {
+            app_log("MIME detection completely failed for $originalName, returned octet-stream.");
+        }
+    }
+
+    // Log detection result
+    if (defined('DEBUG') && DEBUG) {
+        app_log("Detected MIME for $originalName: $realMime");
+    }
 
     $isImage = str_starts_with($realMime, 'image/');
     $isVideo = str_starts_with($realMime, 'video/');

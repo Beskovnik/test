@@ -14,10 +14,38 @@ require_once __DIR__ . '/Helpers.php';
 use App\Database;
 use App\Migrator;
 
-// Debugging Setup
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
+// DEBUG CONFIGURATION
+$debugFile = __DIR__ . '/../_data/DEBUG';
+if (file_exists($debugFile)) {
+    if (!defined('DEBUG')) define('DEBUG', true);
+} else {
+    if (!defined('DEBUG')) define('DEBUG', getenv('DEBUG') === '1');
+}
+
+if (DEBUG) {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    error_reporting(E_ALL);
+}
+
+// Logger function
+function app_log($message) {
+    $logFile = __DIR__ . '/../_data/debug.log';
+    try {
+        if (file_exists($logFile) && filesize($logFile) > 5 * 1024 * 1024) {
+            @rename($logFile, $logFile . '.' . date('YmdHis') . '.bak');
+        }
+        $entry = "[" . date('Y-m-d H:i:s') . "] " . $message . PHP_EOL;
+        @file_put_contents($logFile, $entry, FILE_APPEND);
+    } catch (\Throwable $t) {
+        // limit damage if logging fails
+        error_log("Logging failed: " . $t->getMessage());
+    }
+}
 
 global $debug_log;
 $debug_log = [];
@@ -28,25 +56,32 @@ $errors = [];
 
 set_error_handler(function ($severity, $message, $file, $line) {
     global $debug_log;
-    $debug_log[] = [
+    $entry = [
         'type' => 'Error',
         'message' => $message,
         'file' => $file,
         'line' => $line
     ];
-    // Return false to let standard error handler continue if needed, but we usually want to just log
+    $debug_log[] = $entry;
+    app_log("PHP Error: $message in $file:$line");
+
+    // Return false to let standard error handler continue if needed
     return false;
 });
 
 set_exception_handler(function ($e) {
     global $debug_log;
-    $debug_log[] = [
+    $entry = [
         'type' => 'Exception',
         'message' => $e->getMessage(),
         'file' => $e->getFile(),
         'line' => $e->getLine()
     ];
+    $debug_log[] = $entry;
+
+    app_log("PHP Exception: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
     error_log("Unhandled Exception: " . $e->getMessage());
+
     if (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json')) {
         \App\Response::error('Internal Server Error', 'EXCEPTION', 500);
     }
@@ -56,22 +91,26 @@ set_exception_handler(function ($e) {
         http_response_code(500);
     }
 
-    echo "<div style='background:#1a1c25;color:#ff4757;padding:2rem;font-family:sans-serif;'>
-        <h1>Critical Error</h1>
-        <p>" . htmlspecialchars($e->getMessage()) . "</p>
-    </div>";
+    if (DEBUG) {
+        echo "<div style='background:#1a1c25;color:#ff4757;padding:2rem;font-family:sans-serif;'>
+            <h1>Critical Error</h1>
+            <p>" . htmlspecialchars($e->getMessage()) . "</p>
+        </div>";
 
-    if (!empty($debug_log)) {
-        echo '<div id="debug-bar" style="position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#0f0; padding:10px; z-index:9999; max-height:200px; overflow-y:auto; font-family:monospace; border-top: 2px solid #0f0;">';
-        echo '<div style="font-weight:bold; border-bottom:1px solid #333; margin-bottom:5px;">DEBUG INFO</div>';
-        foreach ($debug_log as $log) {
-            echo '<div style="margin-bottom:2px;">';
-            echo '<span style="color:#ff0000;">[' . htmlspecialchars((string)$log['type']) . ']</span> ';
-            echo htmlspecialchars((string)$log['message']) . ' ';
-            echo '<span style="color:#888;">(' . htmlspecialchars((string)$log['file']) . ':' . $log['line'] . ')</span>';
+        if (!empty($debug_log)) {
+            echo '<div id="debug-bar" style="position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#0f0; padding:10px; z-index:9999; max-height:200px; overflow-y:auto; font-family:monospace; border-top: 2px solid #0f0;">';
+            echo '<div style="font-weight:bold; border-bottom:1px solid #333; margin-bottom:5px;">DEBUG INFO</div>';
+            foreach ($debug_log as $log) {
+                echo '<div style="margin-bottom:2px;">';
+                echo '<span style="color:#ff0000;">[' . htmlspecialchars((string)$log['type']) . ']</span> ';
+                echo htmlspecialchars((string)$log['message']) . ' ';
+                echo '<span style="color:#888;">(' . htmlspecialchars((string)$log['file']) . ':' . $log['line'] . ')</span>';
+                echo '</div>';
+            }
             echo '</div>';
         }
-        echo '</div>';
+    } else {
+        echo "<h1>Internal Server Error</h1>";
     }
 });
 

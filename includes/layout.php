@@ -136,25 +136,24 @@ function render_footer(): void
     // Existing code included it globally.
     echo '<script src="/assets/js/infinite_scroll.js"></script>';
 
-    // Inject Debug Console for Admins
-    $user = Auth::user();
-    if ($user && $user['role'] === 'admin') {
+    // Inject Debug Console if DEBUG is enabled
+    if (defined('DEBUG') && DEBUG) {
         echo '<script src="/assets/js/debug_console.js"></script>';
-    }
 
-    // DEBUG BAR (Server-side logs)
-    global $debug_log;
-    if (!empty($debug_log)) {
-        echo '<div id="debug-bar" style="position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#0f0; padding:10px; z-index:9999; max-height:200px; overflow-y:auto; font-family:monospace; border-top: 2px solid #0f0;">';
-        echo '<div style="font-weight:bold; border-bottom:1px solid #333; margin-bottom:5px;">DEBUG INFO</div>';
-        foreach ($debug_log as $log) {
-            echo '<div style="margin-bottom:2px;">';
-            echo '<span style="color:#ff0000;">[' . htmlspecialchars((string)$log['type']) . ']</span> ';
-            echo htmlspecialchars((string)$log['message']) . ' ';
-            echo '<span style="color:#888;">(' . htmlspecialchars((string)$log['file']) . ':' . $log['line'] . ')</span>';
+        // DEBUG BAR (Server-side logs)
+        global $debug_log;
+        if (!empty($debug_log)) {
+            echo '<div id="debug-bar" style="position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#0f0; padding:10px; z-index:9999; max-height:200px; overflow-y:auto; font-family:monospace; border-top: 2px solid #0f0;">';
+            echo '<div style="font-weight:bold; border-bottom:1px solid #333; margin-bottom:5px;">DEBUG INFO</div>';
+            foreach ($debug_log as $log) {
+                echo '<div style="margin-bottom:2px;">';
+                echo '<span style="color:#ff0000;">[' . htmlspecialchars((string)$log['type']) . ']</span> ';
+                echo htmlspecialchars((string)$log['message']) . ' ';
+                echo '<span style="color:#888;">(' . htmlspecialchars((string)$log['file']) . ':' . $log['line'] . ')</span>';
+                echo '</div>';
+            }
             echo '</div>';
         }
-        echo '</div>';
     }
 
     echo '</body></html>';
