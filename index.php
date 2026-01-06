@@ -99,8 +99,9 @@ foreach ($grouped as $label => $items) {
     echo '<div class="grid">';
     foreach ($items as $item) {
         $thumb = '/' . $item['thumb_path'];
-        $title = htmlspecialchars($item['title'] ?: 'Brez naslova', ENT_QUOTES, 'UTF-8');
         $id = (int)$item['id'];
+        $typeLabel = $item['type'] === 'video' ? 'video' : 'slika';
+        $title = $id . ' ' . $typeLabel;
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
 
         $original = '/' . htmlspecialchars($item['file_path'], ENT_QUOTES, 'UTF-8');

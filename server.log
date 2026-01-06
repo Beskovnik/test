@@ -1,0 +1,28 @@
+[Mon Jan  5 23:51:13 2026] PHP 8.3.6 Development Server (http://localhost:8080) started
+[Mon Jan  5 23:52:04 2026] [::1]:40910 Accepted
+[Mon Jan  5 23:52:04 2026] [::1]:40910 [200]: GET /
+[Mon Jan  5 23:52:04 2026] [::1]:40910 Closing
+[Mon Jan  5 23:52:04 2026] [::1]:40914 Accepted
+[Mon Jan  5 23:52:04 2026] [::1]:40926 Accepted
+[Mon Jan  5 23:52:04 2026] [::1]:40914 [200]: GET /assets/css/app.css
+[Mon Jan  5 23:52:04 2026] [::1]:40914 Closing
+[Mon Jan  5 23:52:04 2026] [::1]:40926 [200]: GET /assets/js/app.js
+[Mon Jan  5 23:52:04 2026] [::1]:40926 Closing
+[Mon Jan  5 23:52:04 2026] [::1]:40928 Accepted
+[Mon Jan  5 23:52:04 2026] [::1]:40928 [200]: GET /uploads/test_images/test.svg
+[Mon Jan  5 23:52:04 2026] [::1]:40928 Closing
+[Mon Jan  5 23:52:05 2026] [::1]:40936 Accepted
+[Mon Jan  5 23:52:05 2026] [::1]:40936 [200]: GET /view.php?id=1
+[Mon Jan  5 23:52:05 2026] [::1]:40936 Closing
+[Mon Jan  5 23:52:05 2026] [::1]:40940 Accepted
+[Mon Jan  5 23:52:05 2026] [::1]:40954 Accepted
+[Mon Jan  5 23:52:05 2026] [::1]:40958 Accepted
+[Mon Jan  5 23:52:05 2026] [::1]:40940 [200]: GET /assets/css/app.css
+[Mon Jan  5 23:52:05 2026] [::1]:40954 [200]: GET /uploads/test_images/test.svg
+[Mon Jan  5 23:52:05 2026] [::1]:40958 [200]: GET /assets/js/app.js
+[Mon Jan  5 23:52:05 2026] [::1]:40940 Closing
+[Mon Jan  5 23:52:05 2026] [::1]:40954 Closing
+[Mon Jan  5 23:52:05 2026] [::1]:40958 Closing
+[Mon Jan  5 23:52:05 2026] [::1]:40960 Accepted
+[Mon Jan  5 23:52:05 2026] [::1]:40960 [200]: GET /api/comment_list.php?post_id=1
+[Mon Jan  5 23:52:05 2026] [::1]:40960 Closing
