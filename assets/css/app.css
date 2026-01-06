@@ -310,10 +310,18 @@ a:hover {
 }
 
 /* Forms & Settings */
-.settings-page, .auth-page {
+.settings-page {
     display: flex;
     justify-content: center;
     padding: 4rem 1.5rem;
+}
+
+.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh; /* Changed to center vertically better */
+    padding: 1rem;
 }
 
 .card.form {
@@ -325,6 +333,10 @@ a:hover {
     flex-direction: column;
     gap: 1.5rem;
     box-shadow: var(--glass-shadow);
+    /* Extra Glass for Login */
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .form input,

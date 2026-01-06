@@ -4,7 +4,7 @@ require __DIR__ . '/app/Bootstrap.php';
 use App\Auth;
 use App\Database;
 
-$user = Auth::user();
+$user = Auth::requireLogin();
 $pdo = Database::connect();
 
 // Params
