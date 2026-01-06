@@ -107,6 +107,5 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token']);
     </div>
 </div>
 
-<script src="/assets/js/view.js"></script>
 <?php
 render_footer();
