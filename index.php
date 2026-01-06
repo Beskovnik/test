@@ -94,8 +94,6 @@ foreach ($grouped as $label => $items) {
         if ($item['type'] === 'image') {
             // If thumb.php fails, try original
             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
-        } elseif ($thumb !== $original) {
-             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
         }
 
         echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';

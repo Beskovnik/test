@@ -4,6 +4,7 @@ require __DIR__ . '/../app/Bootstrap.php';
 use App\Auth;
 use App\Settings;
 use App\Database;
+use App\Audit;
 
 $user = Auth::requireAdmin();
 $pdo = Database::connect();
@@ -25,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // UI Settings
     Settings::set($pdo, 'accent_color', $_POST['accent_color']);
+
+    Audit::log($pdo, $user['id'], 'settings_update', 'Updated settings');
 
     header('Location: /admin/settings.php');
     exit;
