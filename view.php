@@ -121,6 +121,7 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
             <button class="button ghost" id="shareBtn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
             <?php if ($user && ($user['role'] === 'admin' || $user['id'] === $post['user_id'])): ?>
                 <button class="button danger" id="deleteBtn" data-id="<?php echo $post['id']; ?>">Izbriši 🗑️</button>
+            <?php endif; ?>
 
             <?php if ($isOwner): ?>
                 <div style="flex:1; display:flex; gap:0.5rem;">
