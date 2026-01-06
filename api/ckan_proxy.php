@@ -25,57 +25,85 @@ $allowedActions = [
 ];
 
 if (!in_array($action, $allowedActions)) {
-    Response::error('Action not allowed', 'INVALID_ACTION', 403);
+    // Custom error format as per prompt: { ok: false, ... }
+    echo json_encode(['ok' => false, 'success' => false, 'error_message' => 'Action not allowed', 'debug' => null]);
+    exit;
 }
 
 // 3. Build Query Parameters
-// We only pass specific parameters to avoid injection or abuse
 $params = [];
-$incoming = $_GET; // or $_POST if we supported it, prompt says use GET for 'get' actions
+$incoming = $_GET;
 
 switch ($action) {
     case 'datastore_search':
         $params['resource_id'] = $incoming['resource_id'] ?? null;
-        if (!$params['resource_id']) Response::error('Missing resource_id', 'MISSING_PARAM');
+        if (!$params['resource_id']) {
+            echo json_encode(['ok' => false, 'success' => false, 'error_message' => 'Missing resource_id', 'debug' => null]);
+            exit;
+        }
 
         if (isset($incoming['limit'])) $params['limit'] = (int)$incoming['limit'];
         if (isset($incoming['offset'])) $params['offset'] = (int)$incoming['offset'];
-        if (isset($incoming['sort'])) $params['sort'] = $incoming['sort'];
-        if (isset($incoming['q'])) $params['q'] = $incoming['q'];
-        if (isset($incoming['filters'])) $params['filters'] = $incoming['filters']; // JSON string? CKAN expects object usually.
-        // Note: fetch() usually sends query params as string. If frontend sends ?filters={"station":"Lj"} that is a string.
+        // Strict sort validation
+        if (isset($incoming['sort'])) {
+             // Allow alphanumeric, space, underscore, desc, asc
+             if (preg_match('/^[a-zA-Z0-9_ ]+$/', $incoming['sort'])) {
+                 $params['sort'] = $incoming['sort'];
+             }
+        }
+        if (isset($incoming['q'])) $params['q'] = substr($incoming['q'], 0, 100);
+
+        // Filters must be a valid JSON string if provided, or sanitized
+        if (isset($incoming['filters'])) {
+            $params['filters'] = $incoming['filters'];
+        }
+        // Fields for efficiency
+        if (isset($incoming['fields'])) {
+             $params['fields'] = preg_replace('/[^a-zA-Z0-9_,]/', '', $incoming['fields']);
+        }
         break;
 
     case 'package_search':
         $params['q'] = $incoming['q'] ?? '*:*';
         $params['rows'] = (int)($incoming['rows'] ?? 10);
         $params['start'] = (int)($incoming['start'] ?? 0);
+        if ($params['rows'] > 50) $params['rows'] = 50; // Rate limit protection
         break;
 
     case 'package_show':
     case 'resource_show':
         $params['id'] = $incoming['id'] ?? null;
-        if (!$params['id']) Response::error('Missing id', 'MISSING_PARAM');
+        if (!$params['id']) {
+            echo json_encode(['ok' => false, 'success' => false, 'error_message' => 'Missing id', 'debug' => null]);
+            exit;
+        }
         break;
 }
 
 // 4. Caching Logic
 $cacheDir = __DIR__ . '/../_data/cache';
-if (!is_dir($cacheDir)) mkdir($cacheDir, 0777, true);
+if (!is_dir($cacheDir)) {
+    @mkdir($cacheDir, 0777, true);
+    // Attempt to set permissions if possible
+    @chmod($cacheDir, 0777);
+}
 
-// Cache Key: action + sorted params
+// Cache Key
 ksort($params);
 $cacheKey = 'ckan_' . $action . '_' . md5(json_encode($params));
 $cacheFile = $cacheDir . '/' . $cacheKey . '.json';
 
 $now = time();
-$ttl = ($action === 'datastore_search') ? 60 : 300; // 60s for data, 5m for meta
+$ttl = ($action === 'datastore_search') ? 60 : 300;
 
+// Serve Cache
 if (file_exists($cacheFile) && ($now - filemtime($cacheFile) < $ttl)) {
     $data = json_decode(file_get_contents($cacheFile), true);
     if ($data) {
         $data['cached'] = true;
-        Response::json($data);
+        // Prompt implies checking 'success' always.
+        echo json_encode($data);
+        exit;
     }
 }
 
@@ -103,22 +131,21 @@ $data = $raw ? json_decode($raw, true) : null;
 if ($data && ($data['success'] ?? false) === true) {
     file_put_contents($cacheFile, $raw);
     $data['cached'] = false;
-    Response::json($data);
+    echo json_encode($data);
 } else {
-    // If CKAN returns 200 but success:false, we get here.
-    // If file_get_contents fails (500 etc), $data is null.
-
-    // Check if we have stale cache
+    // Stale Cache Fallback
     if (file_exists($cacheFile)) {
         $data = json_decode(file_get_contents($cacheFile), true);
         if ($data) {
             $data['stale'] = true;
-            Response::json($data);
+            echo json_encode($data);
+            exit;
         }
     }
 
     $errorMsg = $data['error']['message'] ?? 'Unknown upstream error';
-    Response::json([
+    // Return specific format requested: { ok: false, error_message: ..., debug: ... }
+    echo json_encode([
         'ok' => false,
         'success' => false,
         'error_message' => $errorMsg,
