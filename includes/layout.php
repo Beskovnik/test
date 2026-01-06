@@ -45,15 +45,11 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     echo '<div class="app">';
     echo '<div class="mobile-overlay"></div>';
     echo '<aside class="sidebar">';
-    echo '<div class="logo">Galerija</div>';
+    echo '<a href="/index.php" class="logo" style="text-decoration:none; color:inherit;">Galerija</a>';
     echo '<nav class="nav">';
     echo nav_link('feed', '/index.php', 'Slike');
     echo nav_link('videos', '/index.php?type=video', 'Video');
-    echo nav_link('explore', '/index.php?tab=explore', 'Raziskuj');
-    echo nav_link('albums', '/index.php?tab=albums', 'Albumi');
-    echo nav_link('favorites', '/index.php?tab=favorites', 'Priljubljene');
     echo nav_link('upload', '/upload.php', 'Upload');
-    echo nav_link('settings', '/settings.php', 'Info');
     if ($isAdmin) {
         echo nav_link('admin', '/admin/index.php', 'Admin Panel');
     }

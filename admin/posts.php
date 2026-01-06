@@ -62,7 +62,7 @@ render_flash($flash ?? null);
                         <img class="thumb" src="/<?php echo htmlspecialchars($post['thumb_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="thumb" style="width: 80px; height: 60px; object-fit: cover; border-radius: 4px;">
                     </td>
                     <td style="padding: 10px;">
-                        <div><strong><?php echo htmlspecialchars($post['title'] ?: 'Brez naslova', ENT_QUOTES, 'UTF-8'); ?></strong></div>
+                        <div><strong><?php echo $post['id'] . ' ' . ($post['type'] === 'video' ? 'video' : 'slika'); ?></strong></div>
                         <div style="color: var(--muted); font-size: 0.9em;">
                             Avtor: <?php echo htmlspecialchars($post['username'] ?? 'Anon', ENT_QUOTES, 'UTF-8'); ?><br>
                             Datum: <?php echo date('d.m.Y H:i', (int)$post['created_at']); ?><br>

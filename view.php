@@ -27,6 +27,10 @@ if (!$post) {
     exit;
 }
 
+// Rename logic
+$typeLabel = $post['type'] === 'video' ? 'video' : 'slika';
+$post['title'] = $post['id'] . ' ' . $typeLabel;
+
 if ($post['visibility'] !== 'public' && !$user) {
     redirect('/login.php');
 }
@@ -39,7 +43,7 @@ if ($user) {
     $liked = (bool)$stmt->fetchColumn();
 }
 
-render_header($post['title'] ?: 'Ogled', $user);
+render_header($post['title'], $user);
 render_flash($flash ?? null);
 
 $media = $post['type'] === 'video'
@@ -54,7 +58,7 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token']);
         <?php echo $media; ?>
     </div>
     <div class="info-panel">
-        <h1><?php echo htmlspecialchars($post['title'] ?: 'Brez naslova', ENT_QUOTES, 'UTF-8'); ?></h1>
+        <h1><?php echo htmlspecialchars($post['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
         <p class="meta">Objavil <?php echo htmlspecialchars($post['username'] ?? 'Anon', ENT_QUOTES, 'UTF-8'); ?></p>
         <?php if ($post['description']) : ?>
             <p><?php echo nl2br(htmlspecialchars($post['description'], ENT_QUOTES, 'UTF-8')); ?></p>
