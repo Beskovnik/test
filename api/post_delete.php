@@ -1,31 +1,53 @@
 <?php
-require __DIR__ . '/../includes/bootstrap.php';
-require __DIR__ . '/../includes/auth.php';
+require __DIR__ . '/../app/Bootstrap.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    exit;
+use App\Auth;
+use App\Database;
+use App\Response;
+
+header('Content-Type: application/json');
+
+$user = Auth::requireLogin();
+$input = json_decode(file_get_contents('php://input'), true);
+
+if (empty($input['id'])) {
+    Response::error('Missing ID');
 }
 
-$user = current_user($pdo);
-if (!$user || $user['role'] !== 'admin') {
-    http_response_code(403);
-    exit;
+$token = $input['csrf_token'] ?? '';
+if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+    Response::error('CSRF Error', 'CSRF', 403);
 }
 
-$postId = (int)($_POST['post_id'] ?? 0);
-if ($postId) {
-    // Delete file
-    $stmt = $pdo->prepare('SELECT file_path, thumb_path FROM posts WHERE id = :id');
-    $stmt->execute([':id' => $postId]);
-    $post = $stmt->fetch();
+$id = (int)$input['id'];
+$pdo = Database::connect();
 
-    if ($post) {
-        if (file_exists(__DIR__ . '/../' . $post['file_path'])) unlink(__DIR__ . '/../' . $post['file_path']);
-        if ($post['thumb_path'] && $post['thumb_path'] !== $post['file_path'] && file_exists(__DIR__ . '/../' . $post['thumb_path'])) unlink(__DIR__ . '/../' . $post['thumb_path']);
+// Verify Ownership or Admin
+$stmt = $pdo->prepare('SELECT user_id, file_path, thumb_path, preview_path FROM posts WHERE id = ?');
+$stmt->execute([$id]);
+$post = $stmt->fetch();
 
-        $stmt = $pdo->prepare('DELETE FROM posts WHERE id = :id');
-        $stmt->execute([':id' => $postId]);
-        echo json_encode(['success' => true]);
+if (!$post) {
+    Response::error('Not found', 'NOT_FOUND', 404);
+}
+
+if ($user['role'] !== 'admin' && $user['id'] !== $post['user_id']) {
+    Response::error('Forbidden', 'FORBIDDEN', 403);
+}
+
+// Delete Files
+$files = [
+    $post['file_path'],
+    $post['thumb_path'],
+    $post['preview_path']
+];
+foreach ($files as $f) {
+    if ($f && file_exists(__DIR__ . '/../' . $f)) {
+        @unlink(__DIR__ . '/../' . $f);
     }
 }
+
+// Delete DB
+$pdo->prepare('DELETE FROM posts WHERE id = ?')->execute([$id]);
+
+Response::json(['ok' => true]);

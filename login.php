@@ -1,38 +1,44 @@
 <?php
-require __DIR__ . '/includes/bootstrap.php';
-require __DIR__ . '/includes/auth.php';
-require __DIR__ . '/includes/csrf.php';
-require __DIR__ . '/includes/layout.php';
+require __DIR__ . '/app/Bootstrap.php';
 
+use App\Auth;
+use App\Settings;
+
+// $user = Auth::requireLogin(); // Do NOT require login on login page, causes loop
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
-    $identifier = trim($_POST['identifier'] ?? '');
+    // Legacy redirect for login form
+    $username = $_POST['identifier'] ?? '';
     $password = $_POST['password'] ?? '';
 
-    $stmt = $pdo->prepare('SELECT * FROM users WHERE (username = :id OR email = :id) AND active = 1');
-    $stmt->execute([':id' => $identifier]);
-    $user = $stmt->fetch();
+    $pdo = \App\Database::connect();
+    $stmt = $pdo->prepare('SELECT * FROM users WHERE (username = :u OR email = :u) AND active = 1');
+    $stmt->execute([':u' => $username]);
+    $u = $stmt->fetch();
 
-    if ($user && password_verify($password, $user['pass_hash'])) {
-        $_SESSION['user_id'] = $user['id'];
-        flash('success', 'Dobrodošli nazaj!');
-        redirect('/index.php');
+    if ($u && password_verify($password, $u['pass_hash'])) {
+        $_SESSION['user_id'] = $u['id'];
+        header('Location: /index.php');
+        exit;
+    } else {
+        $error = "Neveljavni podatki ali blokiran račun.";
     }
-    flash('error', 'Napačni podatki.');
-    redirect('/login.php');
 }
 
-render_header('Prijava', current_user($pdo));
-render_flash($flash ?? null);
+require __DIR__ . '/includes/layout.php';
+render_header('Prijava', null);
 ?>
 <div class="auth-page">
     <form class="card form" method="post">
         <?php echo csrf_field(); ?>
         <h1>Prijava</h1>
+        <?php if (isset($error)) echo "<p class='text-danger'>$error</p>"; ?>
+
         <label>Uporabniško ime ali email</label>
         <input type="text" name="identifier" required>
+
         <label>Geslo</label>
         <input type="password" name="password" required>
+
         <button class="button" type="submit">Prijavi se</button>
     </form>
 </div>

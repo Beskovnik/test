@@ -1,5 +1,4 @@
 <?php
-require __DIR__ . '/includes/bootstrap.php';
-
+require __DIR__ . '/app/Bootstrap.php';
 session_destroy();
-redirect('/index.php');
+header('Location: /login.php');

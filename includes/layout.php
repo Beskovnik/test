@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Settings;
+use App\Auth;
+
 function render_header(string $title, ?array $user, string $active = 'feed'): void
 {
     global $pdo, $errors;
-    $accentColor = setting_get($pdo, 'accent_color', '#4b8bff');
-    $pageScale = (int)setting_get($pdo, 'page_scale', '150');
-    $bgType = setting_get($pdo, 'bg_type', 'default');
-    $bgValue = setting_get($pdo, 'bg_value', '');
+    $accentColor = Settings::get($pdo, 'accent_color', '#4b8bff');
+    $pageScale = (int)Settings::get($pdo, 'page_scale', '150');
+    $bgType = Settings::get($pdo, 'bg_type', 'default');
+    $bgValue = Settings::get($pdo, 'bg_value', '');
 
     $csrf = htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8');
     $isAdmin = $user && $user['role'] === 'admin';
@@ -92,7 +95,7 @@ function render_footer(): void
     echo '<script src="/assets/js/infinite_scroll.js"></script>';
 
     // Inject Debug Console for Admins
-    $user = current_user($pdo);
+    $user = Auth::user();
     if ($user && $user['role'] === 'admin') {
         echo '<script src="/assets/js/debug_console.js"></script>';
     }

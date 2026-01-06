@@ -1,19 +1,23 @@
 <?php
-require __DIR__ . '/includes/bootstrap.php';
-require __DIR__ . '/includes/auth.php';
-require __DIR__ . '/includes/csrf.php';
-require __DIR__ . '/includes/media.php';
-require __DIR__ . '/includes/layout.php';
+require __DIR__ . '/app/Bootstrap.php';
 
-$user = current_user($pdo);
+use App\Auth;
+use App\Database;
+
+$user = Auth::user();
+$pdo = Database::connect();
+
+// Params
 $typeFilter = $_GET['type'] ?? null;
 $search = trim($_GET['q'] ?? '');
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 40;
 $offset = ($page - 1) * $perPage;
 
+// Build Query
 $where = ['visibility = "public"'];
 $params = [];
+
 if ($typeFilter === 'video' || $typeFilter === 'image') {
     $where[] = 'type = :type';
     $params[':type'] = $typeFilter;
@@ -23,13 +27,12 @@ if ($search !== '') {
     $params[':q'] = '%' . $search . '%';
 }
 
-$sql = 'SELECT posts.*, users.username,
+$whereClause = implode(' AND ', $where);
+$sql = "SELECT posts.*, users.username,
         (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) as like_count
-        FROM posts LEFT JOIN users ON posts.user_id = users.id';
-if ($where) {
-    $sql .= ' WHERE ' . implode(' AND ', $where);
-}
-$sql .= ' ORDER BY created_at DESC LIMIT :limit OFFSET :offset';
+        FROM posts LEFT JOIN users ON posts.user_id = users.id
+        WHERE {$whereClause}
+        ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
 
 $stmt = $pdo->prepare($sql);
 foreach ($params as $key => $value) {
@@ -40,30 +43,14 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $posts = $stmt->fetchAll();
 
-function time_group_label(int $timestamp): string
-{
-    $now = new DateTimeImmutable('now');
-    $date = (new DateTimeImmutable())->setTimestamp($timestamp);
-    $diff = $now->diff($date);
-
-    if ($diff->days === 0) {
-        return 'Danes';
-    }
-    if ($diff->days === 1) {
-        return 'Včeraj';
-    }
-    if ($diff->days <= 7) {
-        return 'Ta teden';
-    }
-    if ($diff->days <= 30) {
-        return 'Ta mesec';
-    }
-    if ($diff->y === 1) {
-        return '1 leto nazaj';
-    }
-    if ($diff->y > 1) {
-        return $diff->y . ' let nazaj';
-    }
+// Grouping Logic
+function time_group_label(int $timestamp): string {
+    $diff = (new DateTimeImmutable('now'))->diff((new DateTimeImmutable())->setTimestamp($timestamp));
+    if ($diff->days === 0) return 'Danes';
+    if ($diff->days === 1) return 'Včeraj';
+    if ($diff->days <= 7) return 'Ta teden';
+    if ($diff->days <= 30) return 'Ta mesec';
+    if ($diff->y >= 1) return ($diff->y) . ' let nazaj';
     return 'Prej';
 }
 
@@ -72,24 +59,12 @@ foreach ($posts as $post) {
     $grouped[time_group_label((int)$post['created_at'])][] = $post;
 }
 
+// Render
+require __DIR__ . '/includes/layout.php';
+
 render_header('Galerija', $user);
-render_flash($flash ?? null);
 
-$galleryData = [];
-foreach ($posts as $post) {
-    $galleryData[] = [
-        'id' => (int)$post['id'],
-        'type' => $post['type'],
-        'file' => '/' . $post['file_path'],
-        'title' => $post['title'],
-        'username' => $post['username'] ?? 'Anon',
-        'created_at' => (int)$post['created_at'],
-        'views' => (int)$post['views'],
-        'likes' => (int)$post['like_count'],
-    ];
-}
-
-if (!$posts) {
+if (!$posts && $page === 1) {
     echo '<div class="empty-state">Ni objav. Naložite prve fotografije ali videe!</div>';
 }
 
@@ -98,23 +73,19 @@ foreach ($grouped as $label => $items) {
     echo '<h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
     echo '<div class="grid">';
     foreach ($items as $item) {
-        // Use thumb_path which now points to /uploads/thumbs/...
-        $thumb = '/' . $item['thumb_path'];
         $id = (int)$item['id'];
-        $typeLabel = $item['type'] === 'video' ? 'video' : 'slika';
-        $title = $id . ' ' . $typeLabel;
+        $thumb = '/' . ($item['thumb_path'] ?: $item['file_path']);
+        $title = $id . ' ' . ($item['type'] === 'video' ? 'video' : 'slika');
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
-
-        $original = '/' . htmlspecialchars($item['file_path'], ENT_QUOTES, 'UTF-8');
-        $fallback = $item['type'] === 'image' ? $original : '/assets/img/placeholder.svg';
+        $fallback = '/assets/img/placeholder.svg'; // Ensure this exists or use a robust handler
 
         echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';
-        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy" width="420" height="420" style="object-fit: cover;" onerror="this.onerror=null;this.src=\'' . $fallback . '\'">';
+        echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" width="420" height="420" style="object-fit: cover;" onerror="this.onerror=null;this.src=\'' . $fallback . '\'">';
         echo $badge;
         echo '<div class="card-meta">';
-        echo '<h3>' . $title . '</h3>';
+        echo '<h3>' . htmlspecialchars($title) . '</h3>';
         if (!empty($item['username'])) {
-            echo '<span>' . htmlspecialchars($item['username'], ENT_QUOTES, 'UTF-8') . '</span>';
+            echo '<span>' . htmlspecialchars($item['username']) . '</span>';
         }
         echo '</div>';
         echo '</a>';
@@ -122,15 +93,12 @@ foreach ($grouped as $label => $items) {
     echo '</div></section>';
 }
 
-// Infinite Scroll Sentinel
+// Sentinel for Infinite Scroll
 if (count($posts) > 0) {
     echo '<div id="scroll-sentinel" data-next-page="' . ($page + 1) . '" data-has-more="' . (count($posts) === $perPage ? 'true' : 'false') . '"></div>';
     echo '<div class="loading-spinner hidden" id="feed-loader">Nalaganje...</div>';
 } else {
-     echo '<div class="no-more-posts">Ni več objav.</div>';
+    echo '<div class="no-more-posts">Ni več objav.</div>';
 }
-
-$galleryJson = htmlspecialchars(json_encode($galleryData, JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8');
-echo '<script>window.galleryItems = ' . $galleryJson . ';</script>';
 
 render_footer();
