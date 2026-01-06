@@ -5,7 +5,7 @@ require __DIR__ . '/includes/layout.php'; // Required for render_header
 use App\Auth;
 use App\Database;
 
-$user = Auth::requireLogin();
+$user = Auth::user();
 $pdo = Database::connect();
 
 // Params
@@ -16,9 +16,14 @@ $perPage = 40;
 $offset = ($page - 1) * $perPage;
 
 // Build Query
-$viewMode = $_GET['view'] ?? 'my'; // 'my' (default) or 'public'
+$viewMode = $_GET['view'] ?? ($user ? 'my' : 'public'); // 'my' (default) or 'public'
 $params = [];
 $where = [];
+
+if (!$user && $viewMode !== 'public') {
+    header('Location: /login.php');
+    exit;
+}
 
 if ($viewMode === 'public') {
     $where[] = 'posts.visibility = "public"';
