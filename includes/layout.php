@@ -86,9 +86,17 @@ function nav_link(string $key, string $href, string $label): string
 
 function render_footer(): void
 {
+    global $pdo;
     echo '</main></div>';
     echo '<script src="/assets/js/app.js"></script>';
     echo '<script src="/assets/js/infinite_scroll.js"></script>';
+
+    // Inject Debug Console for Admins
+    $user = current_user($pdo);
+    if ($user && $user['role'] === 'admin') {
+        echo '<script src="/assets/js/debug_console.js"></script>';
+    }
+
     echo '</body></html>';
 }
 

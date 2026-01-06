@@ -5,22 +5,24 @@
 
     // Config from Server
     const LIMITS = window.APP_LIMITS || {
-        maxFiles: 10,
+        maxFiles: 100, // Updated Default
         maxImageBytes: 5 * 1024 * 1024 * 1024,
         maxVideoBytes: 5 * 1024 * 1024 * 1024,
         maxImageGb: 5,
         maxVideoGb: 5
     };
 
-    // State
+    // Queue State
+    const MAX_CONCURRENT = 4;
+    let queue = [];
     let activeUploads = 0;
+
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
     // Initialize UI for device
     function initUI() {
         if (isMobile) {
             // Mobile specific initial adjustments if needed
-            // CSS handles most of layout
         }
     }
 
@@ -65,7 +67,7 @@
                         <span class="file-size">${formatBytes(file.size)}</span>
                     </div>
                 </div>
-                <div class="upload-status-badge">Čaka</div>
+                <div class="upload-status-badge">V čakalni vrsti</div>
             </div>
 
             <div class="file-progress-wrapper">
@@ -96,11 +98,25 @@
             startTime: 0,
             lastLoaded: 0,
             lastTime: 0,
-            xhr: null
+            xhr: null,
+            status: 'queued' // queued, uploading, done, error, cancelled
         };
     }
 
-    function startUpload(uploadItem) {
+    function processQueue() {
+        if (activeUploads >= MAX_CONCURRENT) return;
+
+        const nextItem = queue.find(i => i.status === 'queued');
+        if (nextItem) {
+            uploadFile(nextItem);
+            processQueue(); // Try to start more if slots available
+        }
+    }
+
+    function uploadFile(uploadItem) {
+        uploadItem.status = 'uploading';
+        activeUploads++;
+
         const { file, element, fill, badge, percentEl, speedEl, etaEl, cancelBtn } = uploadItem;
 
         // 1. Validate Size based on type
@@ -109,16 +125,16 @@
         let limitBytes = isVideo ? LIMITS.maxVideoBytes : LIMITS.maxImageBytes;
         let limitGb = isVideo ? LIMITS.maxVideoGb : LIMITS.maxImageGb;
 
-        // Fallback for unknown types if needed, or assume image limit
+        // Fallback for unknown types
         if (!isVideo && !isImage) {
-            // Treat strictly or default to image limit? Prompt implied separate limits.
-            // Let's use image limit for others as "strict" default
             limitBytes = LIMITS.maxImageBytes;
             limitGb = LIMITS.maxImageGb;
         }
 
         if (file.size > limitBytes) {
+            activeUploads--;
             markError(uploadItem, `Prevelika datoteka (Max ${limitGb} GB)`);
+            processQueue();
             return;
         }
 
@@ -169,50 +185,76 @@
         };
 
         xhr.onload = () => {
+            activeUploads--;
             element.classList.remove('uploading');
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    const resp = JSON.parse(xhr.responseText);
-                    const result = resp.results?.[0]; // We sent one file
 
-                    if (result && result.success) {
-                        markSuccess(uploadItem);
-                    } else {
-                        markError(uploadItem, result?.error || 'Napaka strežnika');
-                    }
-                } catch (e) {
-                    markError(uploadItem, 'Neveljaven odgovor');
+            // Try to parse JSON even if status is error, as backend might return structured error
+            let response = null;
+            try {
+                response = JSON.parse(xhr.responseText);
+            } catch (e) {
+                // Not JSON (fatal error or HTML)
+                if (xhr.status >= 200 && xhr.status < 300) {
+                     markError(uploadItem, 'Neveljaven odgovor strežnika');
+                } else {
+                     markError(uploadItem, `HTTP Error ${xhr.status}`);
+                }
+                processQueue();
+                return;
+            }
+
+            // Backend structure: { results: [ { success: true/false, error: '...', ... } ] }
+            // or standard error structure
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const result = response.results?.[0];
+                if (result && (result.success || !result.error)) {
+                    markSuccess(uploadItem);
+                } else {
+                    markError(uploadItem, result?.error || 'Neznana napaka');
                 }
             } else {
-                markError(uploadItem, `HTTP ${xhr.status}`);
+                // Backend returned 4xx/5xx with JSON error
+                const result = response.results?.[0];
+                const msg = result?.error || response.error || `HTTP ${xhr.status}`;
+                markError(uploadItem, msg);
             }
+
+            processQueue();
         };
 
         xhr.onerror = () => {
+            activeUploads--;
             element.classList.remove('uploading');
             markError(uploadItem, 'Napaka omrežja');
+            processQueue();
         };
 
         xhr.onabort = () => {
+            activeUploads--;
             element.classList.remove('uploading');
             markError(uploadItem, 'Preklicano');
+            processQueue();
         };
 
         cancelBtn.addEventListener('click', () => {
             if (xhr.readyState > 0 && xhr.readyState < 4) {
                 xhr.abort();
             } else {
-                // If already done or error, just remove from list?
-                // For now, let's allow removing the card
                 element.remove();
+                // If it was queued, remove from queue
+                const idx = queue.indexOf(uploadItem);
+                if (idx > -1) queue.splice(idx, 1);
             }
         });
 
         xhr.open('POST', '/upload.php', true);
+        xhr.setRequestHeader('Accept', 'application/json');
         xhr.send(formData);
     }
 
     function markSuccess(item) {
+        item.status = 'done';
         item.element.classList.add('success');
         item.badge.textContent = 'Končano';
         item.fill.style.width = '100%';
@@ -224,6 +266,7 @@
     }
 
     function markError(item, msg) {
+        item.status = 'error';
         item.element.classList.add('error');
         item.badge.textContent = 'Napaka';
         item.etaEl.textContent = msg;
@@ -236,7 +279,7 @@
             dropZone.classList.add('compact');
         }
 
-        // Limit concurrent selection count
+        // Limit concurrent selection count if needed, but 100 is allowed
         if (fileList.length > LIMITS.maxFiles) {
             alert(`Izbrali ste preveč datotek. Max: ${LIMITS.maxFiles}. Naloženo bo prvih ${LIMITS.maxFiles}.`);
         }
@@ -245,8 +288,10 @@
 
         filesToUpload.forEach(file => {
             const uiItem = createUploadItem(file);
-            startUpload(uiItem);
+            queue.push(uiItem);
         });
+
+        processQueue();
     }
 
     // Event Listeners

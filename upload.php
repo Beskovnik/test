@@ -1,11 +1,63 @@
 <?php
+// Ensure JSON response for API calls
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Disable display_errors to prevent HTML pollution in JSON
+    ini_set('display_errors', '0');
+    header('Content-Type: application/json; charset=utf-8');
+}
+
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/auth.php';
 require __DIR__ . '/includes/csrf.php';
 require __DIR__ . '/includes/media.php';
 require __DIR__ . '/includes/layout.php';
 
-$user = require_login($pdo);
+// Custom Error Handler for JSON requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    set_error_handler(function($errno, $errstr, $errfile, $errline) {
+        if (!(error_reporting() & $errno)) {
+            return false;
+        }
+        $requestId = $_SERVER['REQUEST_ID'] ?? uniqid('req_', true);
+        http_response_code(500);
+        echo json_encode([
+            'results' => [[
+                'error' => "PHP Error: $errstr",
+                'code' => 'PHP_ERR',
+                'request_id' => $requestId
+            ]]
+        ]);
+        exit;
+    });
+
+    // Exception Handler
+    set_exception_handler(function($e) {
+        $requestId = $_SERVER['REQUEST_ID'] ?? uniqid('req_', true);
+        http_response_code(500);
+        echo json_encode([
+            'results' => [[
+                'error' => $e->getMessage(),
+                'code' => 'EXCEPTION',
+                'request_id' => $requestId
+            ]]
+        ]);
+        exit;
+    });
+}
+
+// Check Login manually to return JSON instead of redirect
+$user = current_user($pdo);
+if (!$user && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    http_response_code(401);
+    echo json_encode(['results' => [[
+        'error' => 'Prijava je potrebna',
+        'code' => 'UNAUTHORIZED'
+    ]]]);
+    exit;
+} elseif (!$user) {
+    redirect('/login.php');
+}
+
 $config = app_config();
 
 // Get settings
@@ -18,12 +70,42 @@ $maxImageBytes = $maxImageGb * 1024 * 1024 * 1024;
 $maxVideoBytes = $maxVideoGb * 1024 * 1024 * 1024;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
+    $requestId = uniqid('req_', true);
+
+    // Check CSRF
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', $csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['results' => [[
+            'error' => 'Neveljaven varnostni žeton (CSRF)',
+            'code' => 'CSRF_INVALID',
+            'request_id' => $requestId
+        ]]]);
+        exit;
+    }
+
+    // Check Permissions
+    if (!is_writable(__DIR__ . '/uploads')) {
+        http_response_code(500);
+        echo json_encode(['results' => [[
+            'error' => 'Upload mapa ni zapisljiva',
+            'code' => 'PERM_DENIED',
+            'request_id' => $requestId
+        ]]]);
+        exit;
+    }
+
     $responses = [];
     $files = $_FILES['files'] ?? null;
+
+    // Return empty success if no files (sometimes happens with empty POST)
     if (!$files) {
         http_response_code(400);
-        echo json_encode(['error' => 'No files uploaded']);
+        echo json_encode(['results' => [[
+            'error' => 'Nobena datoteka ni bila prejeta',
+            'code' => 'NO_FILES',
+            'request_id' => $requestId
+        ]]]);
         exit;
     }
 
@@ -34,8 +116,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (is_array($files['name'])) {
         $count = count($files['name']);
         if ($count > $maxFiles) {
+             // We allow > maxFiles in parallel requests, but if a single request has > max, block it.
+             // With the new 100 limit, this is less likely.
             http_response_code(400);
-            echo json_encode(['error' => "Maximum {$maxFiles} files"]);
+            echo json_encode(['results' => [[
+                'error' => "Preveč datotek v enem zahtevku (Max {$maxFiles})",
+                'code' => 'TOO_MANY_FILES',
+                'request_id' => $requestId
+            ]]]);
             exit;
         }
         for ($i = 0; $i < $count; $i++) {
@@ -52,8 +140,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     foreach ($normalizedFiles as $file) {
+        $res = [
+            'name' => $file['name'],
+            'request_id' => $requestId
+        ];
+
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            $responses[] = ['name' => $file['name'], 'error' => 'Upload failed (Code ' . $file['error'] . ')'];
+            $codeMap = [
+                UPLOAD_ERR_INI_SIZE => 'File too large (ini)',
+                UPLOAD_ERR_FORM_SIZE => 'File too large (form)',
+                UPLOAD_ERR_PARTIAL => 'Partial upload',
+                UPLOAD_ERR_NO_FILE => 'No file',
+                UPLOAD_ERR_NO_TMP_DIR => 'No tmp dir',
+                UPLOAD_ERR_CANT_WRITE => 'Cant write',
+                UPLOAD_ERR_EXTENSION => 'Extension error'
+            ];
+            $res['error'] = 'Upload failed: ' . ($codeMap[$file['error']] ?? 'Code ' . $file['error']);
+            $res['code'] = 'UPLOAD_ERR_' . $file['error'];
+            $responses[] = $res;
             continue;
         }
         $originalName = $file['name'];
@@ -62,7 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
         if (in_array($ext, $config['blocked_exts'], true)) {
-            $responses[] = ['name' => $originalName, 'error' => 'File type blocked'];
+            $res['error'] = 'File type blocked';
+            $res['code'] = 'BLOCKED_TYPE';
+            $responses[] = $res;
             continue;
         }
 
@@ -71,24 +177,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($mediaType === 'image') {
             if (!in_array($mime, $config['allowed_images'], true)) {
-                $responses[] = ['name' => $originalName, 'error' => 'Invalid image type'];
+                $res['error'] = 'Invalid image type';
+                $res['code'] = 'INVALID_TYPE';
+                $responses[] = $res;
                 continue;
             }
             if ($size > $maxImageBytes) {
-                $responses[] = ['name' => $originalName, 'error' => "Image too large (Max {$maxImageGb} GB)"];
+                $res['error'] = "Image too large (Max {$maxImageGb} GB)";
+                $res['code'] = 'TOO_LARGE';
+                $responses[] = $res;
                 continue;
             }
         } elseif ($mediaType === 'video') {
             if (!in_array($mime, $config['allowed_videos'], true)) {
-                $responses[] = ['name' => $originalName, 'error' => 'Invalid video type'];
+                $res['error'] = 'Invalid video type';
+                $res['code'] = 'INVALID_TYPE';
+                $responses[] = $res;
                 continue;
             }
             if ($size > $maxVideoBytes) {
-                $responses[] = ['name' => $originalName, 'error' => "Video too large (Max {$maxVideoGb} GB)"];
+                $res['error'] = "Video too large (Max {$maxVideoGb} GB)";
+                $res['code'] = 'TOO_LARGE';
+                $responses[] = $res;
                 continue;
             }
         } else {
-            $responses[] = ['name' => $originalName, 'error' => 'Unsupported file'];
+            $res['error'] = 'Unsupported file';
+            $res['code'] = 'UNSUPPORTED';
+            $responses[] = $res;
             continue;
         }
 
@@ -102,7 +218,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Move Original
         if (!move_uploaded_file($tmpName, __DIR__ . '/' . $targetOriginal)) {
-            $responses[] = ['name' => $originalName, 'error' => 'Failed to move file'];
+            $res['error'] = 'Failed to move file';
+            $res['code'] = 'MOVE_FAILED';
+            $responses[] = $res;
             continue;
         }
 
@@ -187,10 +305,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':preview_path' => $targetPreview,
         ]);
 
-        $responses[] = ['name' => $originalName, 'success' => true, 'post_id' => (int)$pdo->lastInsertId()];
+        $res['success'] = true;
+        $res['post_id'] = (int)$pdo->lastInsertId();
+        $responses[] = $res;
     }
 
-    header('Content-Type: application/json');
     echo json_encode(['results' => $responses]);
     exit;
 }
