@@ -245,11 +245,8 @@ function processFile($sourcePath, $originalName, $mimeType, $fileSize, $user) {
             $dbPreview = 'uploads/preview/' . $random . '.jpg';
             $targetPreview = $uploadDir . '/preview/' . $random . '.jpg';
 
-            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb);
-            if ($thumbSuccess) {
-                copy($targetThumb, $targetPreview);
-                $previewSuccess = true;
-            }
+            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+            $previewSuccess = Media::generateVideoThumb($targetOriginal, $targetPreview, 1600);
         }
     } catch (Exception $e) {
         // Log media generation error but don't fail upload

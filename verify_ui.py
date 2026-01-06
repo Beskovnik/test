@@ -20,11 +20,33 @@ def verify_glassmorphism():
             print(f"Sidebar Background: {sidebar_bg}")
 
             # Check for blur
-            if "blur" not in sidebar_backdrop and "none" not in sidebar_backdrop:
+            if "blur" not in sidebar_backdrop:
                 # Note: some browsers might report 'none' if hardware accel issues,
                 # but standard headless chromium usually reports it.
                 # However, if it fails, we should check if it's applied in CSS at all.
-                pass
+                print("Computed style does not contain 'blur'. Checking CSS rules explicitly...")
+
+                is_applied_in_css = page.evaluate("""() => {
+                    for (const sheet of document.styleSheets) {
+                        try {
+                            for (const rule of sheet.cssRules) {
+                                if (rule.selectorText && rule.selectorText.includes('.sidebar')) {
+                                    const style = rule.style;
+                                    if ((style.backdropFilter && style.backdropFilter.includes('blur')) ||
+                                        (style.webkitBackdropFilter && style.webkitBackdropFilter.includes('blur'))) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                    return false;
+                }""")
+
+                if is_applied_in_css:
+                    print("Fallback PASS: Glassmorphism found in CSS rules (likely browser rendering limitation).")
+                else:
+                    print("FAIL: Glassmorphism NOT found in computed style OR CSS rules.")
 
             # Take screenshot
             page.screenshot(path="ui_glassmorphism.png")
