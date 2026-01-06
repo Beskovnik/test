@@ -34,11 +34,11 @@ render_header('Prijava', null);
         <h1>Prijava</h1>
         <?php if (isset($error)) echo "<p class='text-danger'>$error</p>"; ?>
 
-        <label>Uporabniško ime ali email</label>
-        <input type="text" name="identifier" required>
+        <label for="identifier">Uporabniško ime ali email</label>
+        <input type="text" id="identifier" name="identifier" autocomplete="username" required>
 
-        <label>Geslo</label>
-        <input type="password" name="password" required>
+        <label for="password">Geslo</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
 
         <button class="button" type="submit">Prijavi se</button>
 
