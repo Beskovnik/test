@@ -12,7 +12,7 @@ $paths = [
 
 $errors = [];
 
-$required_extensions = ['gd', 'pdo_sqlite'];
+$required_extensions = ['pdo_sqlite'];
 foreach ($required_extensions as $ext) {
     if (!extension_loaded($ext)) {
         $errors[] = "Missing PHP extension: {$ext}";
