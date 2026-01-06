@@ -75,12 +75,22 @@ foreach ($grouped as $label => $items) {
     foreach ($items as $item) {
         $id = (int)$item['id'];
         $thumb = '/' . ($item['thumb_path'] ?: $item['file_path']);
+        $original = '/' . $item['file_path'];
         $title = $id . ' ' . ($item['type'] === 'video' ? 'video' : 'slika');
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
-        $fallback = '/assets/img/placeholder.svg'; // Ensure this exists or use a robust handler
+        $fallback = '/assets/img/placeholder.svg';
+
+        // Robust handler: Try original if thumb fails (images only), then placeholder
+        $jsOriginal = json_encode($original);
+        $jsFallback = json_encode($fallback);
+
+        $onError = "this.onerror=null;this.src=$jsFallback";
+        if ($item['type'] === 'image' && $thumb !== $original) {
+            $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
+        }
 
         echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';
-        echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" width="420" height="420" style="object-fit: cover;" onerror="this.onerror=null;this.src=\'' . $fallback . '\'">';
+        echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" width="420" height="420" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
         echo $badge;
         echo '<div class="card-meta">';
         echo '<h3>' . htmlspecialchars($title) . '</h3>';

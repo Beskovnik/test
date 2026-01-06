@@ -28,25 +28,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Extract new time groups or append to existing
                 const newGroups = doc.querySelectorAll('.time-group');
-                const container = document.querySelector('main.container') || document.body;
-
-                // Insert new content before the sentinel
-                // Note: This is a simplified approach. Ideally we'd merge same-day groups.
-                // For now, we just append sections.
-
-                // We need to find where to append. The sentinel is likely at the end.
-                // Let's insert before the sentinel.
 
                 if (newGroups.length > 0) {
                     newGroups.forEach(group => {
                         // Check if last group on page has same title (date)
-                        const lastGroup = document.querySelector('.time-group:last-of-type');
+                        const allGroups = document.querySelectorAll('.time-group');
+                        const lastGroup = allGroups.length > 0 ? allGroups[allGroups.length - 1] : null;
                         const groupTitle = group.querySelector('h2').textContent;
 
                         if (lastGroup && lastGroup.querySelector('h2').textContent === groupTitle) {
-                            // Merge grids
-                            const grid = group.querySelector('.grid');
-                            lastGroup.querySelector('.grid').innerHTML += grid.innerHTML;
+                            // Merge grids by moving elements (preserves events/state)
+                            const sourceGrid = group.querySelector('.grid');
+                            const targetGrid = lastGroup.querySelector('.grid');
+
+                            while (sourceGrid.firstChild) {
+                                targetGrid.appendChild(sourceGrid.firstChild);
+                            }
                         } else {
                             // Append new group before pagination/sentinel
                              sentinel.parentNode.insertBefore(group, sentinel);
