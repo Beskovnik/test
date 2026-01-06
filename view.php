@@ -5,11 +5,11 @@ require __DIR__ . '/includes/layout.php';
 use App\Auth;
 use App\Database;
 
-$user = Auth::requireLogin();
+$share = $_GET['s'] ?? null;
+$user = $share ? Auth::user() : Auth::requireLogin();
 $pdo = Database::connect();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
-$share = $_GET['s'] ?? null;
 
 if ($id) {
     $stmt = $pdo->prepare('SELECT posts.*, users.username FROM posts LEFT JOIN users ON posts.user_id = users.id WHERE posts.id = :id');
