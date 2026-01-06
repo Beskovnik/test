@@ -4,7 +4,7 @@ require __DIR__ . '/app/Bootstrap.php';
 use App\Auth;
 use App\Database;
 
-$user = Auth::user();
+$user = Auth::requireLogin();
 $pdo = Database::connect();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
@@ -29,10 +29,10 @@ if (!$post) {
 }
 
 // Access Check
-if ($post['visibility'] !== 'public' && !$user) {
-    header('Location: /login.php');
-    exit;
-}
+// if ($post['visibility'] !== 'public' && !$user) {
+//    header('Location: /login.php');
+//    exit;
+// }
 
 // Like Status
 $likeCount = $pdo->prepare('SELECT COUNT(*) FROM likes WHERE post_id = ?');

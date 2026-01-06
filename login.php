@@ -31,19 +31,23 @@ render_header('Prijava', null);
 <div class="auth-page">
     <form class="card form" method="post">
         <?php echo csrf_field(); ?>
-        <h1>Prijava</h1>
-        <?php if (isset($error)) echo "<p class='text-danger'>$error</p>"; ?>
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <h1 style="margin: 0; font-size: 2rem; background: linear-gradient(135deg, #fff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Galerija</h1>
+            <p style="margin: 0.5rem 0 0; color: var(--muted);">Dobrodošli nazaj</p>
+        </div>
+
+        <?php if (isset($error)) echo "<div class='error-toast' style='padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem;'>$error</div>"; ?>
 
         <label for="identifier">Uporabniško ime ali email</label>
-        <input type="text" id="identifier" name="identifier" autocomplete="username" required>
+        <input type="text" id="identifier" name="identifier" autocomplete="username" required placeholder="Vpišite svoje podatke">
 
         <label for="password">Geslo</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
 
-        <button class="button" type="submit">Prijavi se</button>
+        <button class="button" type="submit" style="margin-top: 1rem; width: 100%; justify-content: center;">Prijavi se</button>
 
-        <p style="margin-top: 1rem; text-align: center; color: var(--muted);">
-            Nimaš računa? <a href="/register.php" style="color: var(--accent);">Registracija</a>
+        <p style="margin-top: 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem;">
+            Nimaš računa? <a href="/register.php" style="color: var(--accent); font-weight: 600;">Registracija</a>
         </p>
     </form>
 </div>
