@@ -12,19 +12,21 @@ if (!$postId) {
 }
 
 $pdo = Database::connect();
+// Only show visible comments
 $stmt = $pdo->prepare('SELECT comments.*, users.username as author
     FROM comments LEFT JOIN users ON comments.user_id = users.id
-    WHERE post_id = ? ORDER BY created_at ASC');
+    WHERE post_id = ? AND comments.status = "visible"
+    ORDER BY created_at ASC');
 $stmt->execute([$postId]);
 $comments = $stmt->fetchAll();
 
 // Map for cleaner JSON
 $data = array_map(function($c) {
     return [
-        'id' => $c['id'],
-        'author' => $c['author'] ?? $c['author_name'] ?? 'Anon',
+        'id' => (int)$c['id'],
+        'author' => htmlspecialchars($c['author'] ?? $c['author_name'] ?? 'Anon'),
         'body' => htmlspecialchars($c['body']),
-        'created_at' => $c['created_at']
+        'created_at' => date('c', (int)$c['created_at']) // ISO 8601
     ];
 }, $comments);
 

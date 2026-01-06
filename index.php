@@ -1,10 +1,11 @@
 <?php
 require __DIR__ . '/app/Bootstrap.php';
+require __DIR__ . '/includes/layout.php'; // Required for render_header
 
 use App\Auth;
 use App\Database;
 
-$user = Auth::user();
+$user = Auth::requireLogin();
 $pdo = Database::connect();
 
 // Params
@@ -15,8 +16,19 @@ $perPage = 40;
 $offset = ($page - 1) * $perPage;
 
 // Build Query
-$where = ['visibility = "public"'];
+$viewMode = $_GET['view'] ?? 'my'; // 'my' (default) or 'public'
 $params = [];
+$where = [];
+
+if ($viewMode === 'public') {
+    $where[] = 'posts.visibility = "public"';
+    $feedTitle = 'Javno';
+} else {
+    // Default: My items
+    $where[] = 'posts.owner_user_id = :current_user';
+    $params[':current_user'] = $user['id'];
+    $feedTitle = 'Moje';
+}
 
 if ($typeFilter === 'video' || $typeFilter === 'image') {
     $where[] = 'type = :type';
@@ -59,18 +71,20 @@ foreach ($posts as $post) {
     $grouped[time_group_label((int)$post['created_at'])][] = $post;
 }
 
-// Render
-require __DIR__ . '/includes/layout.php';
-
-render_header('Galerija', $user);
+// Render Header
+render_header('Galerija' . ($viewMode === 'public' ? ' (Javno)' : ''), $user, $typeFilter === 'video' ? 'videos' : 'feed');
 
 if (!$posts && $page === 1) {
-    echo '<div class="empty-state">Ni objav. Naložite prve fotografije ali videe!</div>';
+    echo '<div style="padding:4rem;text-align:center;color:var(--muted);font-size:1.2rem;">Ni objav. Naložite prve fotografije ali videe!</div>';
 }
+
+// Pre-calculate fallback for robustness
+$fallback = '/assets/img/placeholder.svg';
+$jsFallback = json_encode($fallback);
 
 foreach ($grouped as $label => $items) {
     echo '<section class="time-group">';
-    echo '<h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
+    echo '<h2 style="padding: 1rem 2rem; color: var(--muted); font-size: 1.1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem;">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
     echo '<div class="grid">';
     foreach ($items as $item) {
         $id = (int)$item['id'];
@@ -84,18 +98,14 @@ foreach ($grouped as $label => $items) {
 
         $title = $id . ' ' . ($item['type'] === 'video' ? 'video' : 'slika');
         $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
-        $fallback = '/assets/img/placeholder.svg';
 
         // Robust handler: Try original if thumb fails (images only), then placeholder
         $jsOriginal = json_encode($original);
-        $jsFallback = json_encode($fallback);
 
         $onError = "this.onerror=null;this.src=$jsFallback";
         if ($item['type'] === 'image') {
             // If thumb.php fails, try original
             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
-        } elseif ($thumb !== $original) {
-             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
         }
 
         echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';
@@ -115,9 +125,9 @@ foreach ($grouped as $label => $items) {
 // Sentinel for Infinite Scroll
 if (count($posts) > 0) {
     echo '<div id="scroll-sentinel" data-next-page="' . ($page + 1) . '" data-has-more="' . (count($posts) === $perPage ? 'true' : 'false') . '"></div>';
-    echo '<div class="loading-spinner hidden" id="feed-loader">Nalaganje...</div>';
+    echo '<div class="loading-spinner hidden" id="feed-loader" style="text-align:center;padding:2rem;color:var(--muted);">Nalaganje...</div>';
 } else {
-    echo '<div class="no-more-posts">Ni več objav.</div>';
+    echo '<div class="no-more-posts" style="text-align:center;padding:2rem;color:var(--muted);">Ni več objav.</div>';
 }
 
 render_footer();

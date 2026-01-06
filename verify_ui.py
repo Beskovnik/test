@@ -1,61 +1,98 @@
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
-def verify_glassmorphism():
+def verify_ui():
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
-
-        # Check homepage
+        browser = None
         try:
-            page.goto("http://localhost:8080/index.php")
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
 
-            # Wait for content
-            page.wait_for_selector(".sidebar")
+            # Navigate to the app
+            page.goto("http://localhost:8080")
 
-            # Get computed style of sidebar
-            sidebar_backdrop = page.eval_on_selector(".sidebar", "el => getComputedStyle(el).backdropFilter")
-            sidebar_bg = page.eval_on_selector(".sidebar", "el => getComputedStyle(el).backgroundColor")
+            # Check for sidebar existence
+            sidebar = page.locator(".sidebar")
+            expect(sidebar).to_be_visible()
 
-            print(f"Sidebar Backdrop Filter: {sidebar_backdrop}")
-            print(f"Sidebar Background: {sidebar_bg}")
+            # Check computed style for backdrop-filter
+            sidebar_backdrop = sidebar.evaluate("element => getComputedStyle(element).backdropFilter")
+            webkit_sidebar_backdrop = sidebar.evaluate("element => getComputedStyle(element).webkitBackdropFilter")
 
-            # Check for blur
-            if "blur" not in sidebar_backdrop:
-                # Note: some browsers might report 'none' if hardware accel issues,
-                # but standard headless chromium usually reports it.
-                # However, if it fails, we should check if it's applied in CSS at all.
-                print("Computed style does not contain 'blur'. Checking CSS rules explicitly...")
+            print(f"Computed backdrop-filter: {sidebar_backdrop}")
+            print(f"Computed -webkit-backdrop-filter: {webkit_sidebar_backdrop}")
 
-                is_applied_in_css = page.evaluate("""() => {
+            # Verify glassmorphism
+            # The task requires a fallback check if computed style check fails
+
+            is_blur_present = False
+            if sidebar_backdrop and "blur" in sidebar_backdrop and "none" not in sidebar_backdrop:
+                is_blur_present = True
+            elif webkit_sidebar_backdrop and "blur" in webkit_sidebar_backdrop and "none" not in webkit_sidebar_backdrop:
+                is_blur_present = True
+
+            if not is_blur_present:
+                # Fallback check as per task description
+                print("Computed style check failed or not supported. Attempting fallback CSS check...")
+
+                # Context from task:
+                # if "blur" not in sidebar_backdrop and "none" not in sidebar_backdrop:
+                #     # Note: some browsers might report 'none' if hardware accel issues,
+                #     # but standard headless chromium usually reports it.
+                #     # However, if it fails, we should check if it's applied in CSS at all.
+                #     pass
+
+                # Implementation of the fallback:
+                # Check if the CSS rule exists in the stylesheets
+
+                css_check = page.evaluate("""() => {
                     for (const sheet of document.styleSheets) {
                         try {
                             for (const rule of sheet.cssRules) {
                                 if (rule.selectorText && rule.selectorText.includes('.sidebar')) {
-                                    const style = rule.style;
-                                    if ((style.backdropFilter && style.backdropFilter.includes('blur')) ||
-                                        (style.webkitBackdropFilter && style.webkitBackdropFilter.includes('blur'))) {
+                                    if ((rule.style.backdropFilter && rule.style.backdropFilter.includes('blur')) ||
+                                        (rule.style.webkitBackdropFilter && rule.style.webkitBackdropFilter.includes('blur'))) {
                                         return true;
                                     }
                                 }
                             }
-                        } catch (e) {}
+                        } catch (e) {
+                            // Ignore CORS errors for external stylesheets if any
+                        }
                     }
                     return false;
                 }""")
 
-                if is_applied_in_css:
-                    print("Fallback PASS: Glassmorphism found in CSS rules (likely browser rendering limitation).")
+                if css_check:
+                    print("Fallback: Glassmorphism found in CSS rules.")
                 else:
-                    print("FAIL: Glassmorphism NOT found in computed style OR CSS rules.")
+                    # Also check if it uses a variable that might define blur
+                    # Since app.css uses var(--blur), checking strict "blur" in style object might fail if it's not resolved in CSSOM the same way
+                    # Let's check the cssText
 
-            # Take screenshot
-            page.screenshot(path="ui_glassmorphism.png")
-            print("Screenshot saved to ui_glassmorphism.png")
+                    css_text_check = page.evaluate("""() => {
+                        for (const sheet of document.styleSheets) {
+                            try {
+                                for (const rule of sheet.cssRules) {
+                                    if (rule.selectorText && rule.selectorText.includes('.sidebar')) {
+                                        if (rule.cssText.includes('backdrop-filter') && rule.cssText.includes('blur')) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                            } catch (e) {}
+                        }
+                        return false;
+                    }""")
 
-        except Exception as e:
-            print(f"Error: {e}")
+                    if css_text_check:
+                        print("Fallback: Glassmorphism found in CSS text.")
+                    else:
+                        raise Exception("Glassmorphism (backdrop-filter) not found in computed style OR CSS rules.")
+            else:
+                print("Glassmorphism verified via computed style.")
         finally:
-            browser.close()
+            if browser:
+                browser.close()
 
 if __name__ == "__main__":
-    verify_glassmorphism()
+    verify_ui()

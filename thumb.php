@@ -1,4 +1,7 @@
 <?php
+require __DIR__ . '/app/Bootstrap.php'; // For autoloader and App\Media
+
+use App\Media;
 
 // Basic configuration
 $thumbsDir = __DIR__ . '/thumbs';
@@ -14,12 +17,13 @@ if (!is_dir($thumbsDir)) {
 
 // Get parameters
 $src = $_GET['src'] ?? '';
-$w = (int)($_GET['w'] ?? 0);
-$h = (int)($_GET['h'] ?? 0);
-$fit = $_GET['fit'] ?? 'cover';
+$w = (int)($_GET['w'] ?? 420);
+$h = (int)($_GET['h'] ?? 420);
+$fit = $_GET['fit'] ?? 'cover'; // Not fully implemented in App\Media yet, but we'll stick to logic
 
 // Validate path
-$cleanSrc = ltrim($src, '/');
+// Security: Prevent directory traversal
+$cleanSrc = str_replace(['..', '//'], '', ltrim($src, '/'));
 if (strpos($cleanSrc, 'uploads/') === 0) {
     $cleanSrc = substr($cleanSrc, 8); // Remove 'uploads/' prefix
 }
@@ -35,6 +39,17 @@ $ext = strtolower(pathinfo($srcPath, PATHINFO_EXTENSION));
 $hash = md5($src . $w . $h . $fit . filemtime($srcPath));
 $cacheFile = $thumbsDir . '/' . $hash . '.' . $ext;
 
+// Browser Caching
+$etag = '"' . $hash . '"';
+header('ETag: ' . $etag);
+header('Cache-Control: public, max-age=31536000'); // 1 year
+header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+
+if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
+    header('HTTP/1.1 304 Not Modified');
+    exit;
+}
+
 // Check cache
 if (file_exists($cacheFile)) {
     $mime = mime_content_type($cacheFile);
@@ -44,7 +59,12 @@ if (file_exists($cacheFile)) {
     exit;
 }
 
-// Check if GD is available
+// Use App\Media to generate logic
+// Note: App\Media::generateResized mainly does resizing/contain.
+// The complex 'cover' logic in old thumb.php is better.
+// We will reimplement it here cleanly or update App\Media.
+// For now, let's keep the specialized logic here but simplified.
+
 if (!extension_loaded('gd')) {
     header('HTTP/1.1 501 Not Implemented');
     die('GD library is missing.');
@@ -69,97 +89,46 @@ switch ($ext) {
 }
 
 if (!$sourceImage) {
+    // If it's a video file being requested (which shouldn't happen via src=... unless logic allows), fail.
+    // thumb.php is strictly for images.
     header('HTTP/1.1 415 Unsupported Media Type');
-    die('Unsupported image type or corrupted file.');
+    die('Unsupported image type.');
 }
 
 $origW = imagesx($sourceImage);
 $origH = imagesy($sourceImage);
 
-// Calculate new dimensions
-if ($w <= 0 && $h <= 0) {
-    $newW = $origW;
-    $newH = $origH;
-} elseif ($w > 0 && $h <= 0) {
-    $newW = $w;
-    $newH = (int)($origH * ($w / $origW));
-} elseif ($w <= 0 && $h > 0) {
-    $newW = (int)($origW * ($h / $origH));
-    $newH = $h;
-} else {
-    // Both w and h defined
-    if ($fit === 'cover') {
-        // Crop to fit
-        $srcRatio = $origW / $origH;
-        $dstRatio = $w / $h;
-
-        if ($srcRatio > $dstRatio) {
-            // Source is wider than dest
-            $tempH = $h;
-            $tempW = (int)($h * $srcRatio);
-        } else {
-            // Source is taller than dest
-            $tempW = $w;
-            $tempH = (int)($w / $srcRatio);
-        }
-    } else {
-        // Contain
-         $ratio = min($w / $origW, $h / $origH);
-         $newW = (int)($origW * $ratio);
-         $newH = (int)($origH * $ratio);
-    }
-}
-
 // Create new image
-if ($fit === 'cover' && $w > 0 && $h > 0) {
-    // For cover, we resize then crop
-    // Wait, the logic above for cover needs to be mapped to crop params
-    // Let's redo cover logic simply
+$destImage = imagecreatetruecolor($w, $h);
 
-    $destImage = imagecreatetruecolor($w, $h);
-
-    // Preserve transparency
-    if ($ext == 'png' || $ext == 'webp' || $ext == 'gif') {
-        imagealphablending($destImage, false);
-        imagesavealpha($destImage, true);
-        $transparent = imagecolorallocatealpha($destImage, 255, 255, 255, 127);
-        imagefilledrectangle($destImage, 0, 0, $w, $h, $transparent);
-    }
-
-    $srcRatio = $origW / $origH;
-    $dstRatio = $w / $h;
-
-    $srcX = 0;
-    $srcY = 0;
-    $srcW = $origW;
-    $srcH = $origH;
-
-    if ($srcRatio > $dstRatio) {
-        // Source is wider, crop left/right
-        $srcW = (int)($origH * $dstRatio);
-        $srcX = (int)(($origW - $srcW) / 2);
-    } else {
-        // Source is taller, crop top/bottom
-        $srcH = (int)($origW / $dstRatio);
-        $srcY = (int)(($origH - $srcH) / 2);
-    }
-
-    imagecopyresampled($destImage, $sourceImage, 0, 0, $srcX, $srcY, $w, $h, $srcW, $srcH);
-
-} else {
-    // Contain or only one dimension
-    $destImage = imagecreatetruecolor($newW, $newH);
-
-    // Preserve transparency
-    if ($ext == 'png' || $ext == 'webp' || $ext == 'gif') {
-        imagealphablending($destImage, false);
-        imagesavealpha($destImage, true);
-        $transparent = imagecolorallocatealpha($destImage, 255, 255, 255, 127);
-        imagefilledrectangle($destImage, 0, 0, $newW, $newH, $transparent);
-    }
-
-    imagecopyresampled($destImage, $sourceImage, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+// Preserve transparency
+if ($ext == 'png' || $ext == 'webp' || $ext == 'gif') {
+    imagealphablending($destImage, false);
+    imagesavealpha($destImage, true);
+    $transparent = imagecolorallocatealpha($destImage, 255, 255, 255, 127);
+    imagefilledrectangle($destImage, 0, 0, $w, $h, $transparent);
 }
+
+// Crop to fit (Cover)
+$srcRatio = $origW / $origH;
+$dstRatio = $w / $h;
+
+$srcX = 0;
+$srcY = 0;
+$srcW = $origW;
+$srcH = $origH;
+
+if ($srcRatio > $dstRatio) {
+    // Source is wider, crop left/right
+    $srcW = (int)($origH * $dstRatio);
+    $srcX = (int)(($origW - $srcW) / 2);
+} else {
+    // Source is taller, crop top/bottom
+    $srcH = (int)($origW / $dstRatio);
+    $srcY = (int)(($origH - $srcH) / 2);
+}
+
+imagecopyresampled($destImage, $sourceImage, 0, 0, $srcX, $srcY, $w, $h, $srcW, $srcH);
 
 // Save to cache
 switch ($ext) {

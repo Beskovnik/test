@@ -25,7 +25,6 @@ function send_json_response($data, $status = 200) {
     if (!empty($buffered_output) || !empty($debug_log)) {
         $data['debug_output'] = $buffered_output;
         $data['debug_log'] = $debug_log ?? [];
-        // Log to server error log as well
         if (!empty($buffered_output)) {
             error_log("API Buffered Output: " . $buffered_output);
         }
@@ -83,6 +82,7 @@ try {
     // File Data
     $file = $_FILES['file_data'] ?? null; // Single chunk/file
     if (!$file) {
+        // Fallback for full uploads
         $files = $_FILES['files'] ?? null;
         if ($files) {
             send_error_response('Legacy array upload not supported in this endpoint', 'NO_FILES');
@@ -125,16 +125,16 @@ try {
         // If not last chunk, return success
         if ($chunkIndex < $totalChunks - 1) {
             send_json_response(['success' => true, 'chunk' => $chunkIndex]);
-            exit; // Should be handled by send_json_response but just in case
+            exit;
         }
 
         // Last chunk received, proceed to process complete file
         $finalPath = $tempPath;
         $originalName = $_POST['file_name'] ?? 'unknown';
-        $mimeType = $_POST['file_type'] ?? 'application/octet-stream';
+        // $mimeType from client is unreliable, we check server side later
         $fileSize = (int)($_POST['file_size'] ?? filesize($finalPath));
 
-        processFile($finalPath, $originalName, $mimeType, $fileSize, $user);
+        processFile($finalPath, $originalName, $fileSize, $user);
 
         // Cleanup
         if (file_exists($finalPath)) {
@@ -143,15 +143,14 @@ try {
 
     } else {
         // Non-chunked single file upload (fallback)
-        processFile($file['tmp_name'], $file['name'], $file['type'], $file['size'], $user);
+        processFile($file['tmp_name'], $file['name'], $file['size'], $user);
     }
 
 } catch (Throwable $e) {
-    // Catch any critical errors
     send_error_response('Exception: ' . $e->getMessage(), 'EXCEPTION', 500);
 }
 
-function processFile($sourcePath, $originalName, $mimeType, $fileSize, $user) {
+function processFile($sourcePath, $originalName, $fileSize, $user) {
     global $pdo;
 
     // Config
@@ -208,7 +207,6 @@ function processFile($sourcePath, $originalName, $mimeType, $fileSize, $user) {
 
     // Move (or rename if from chunks)
     if (!rename($sourcePath, $targetOriginal)) {
-        // Try copy/unlink if rename fails
         if (!copy($sourcePath, $targetOriginal)) {
             send_error_response('Failed to save file to ' . $targetOriginal, 'SAVE_ERROR');
         }
@@ -245,11 +243,18 @@ function processFile($sourcePath, $originalName, $mimeType, $fileSize, $user) {
             $dbPreview = 'uploads/preview/' . $random . '.jpg';
             $targetPreview = $uploadDir . '/preview/' . $random . '.jpg';
 
-            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+            // Try to generate preview (high res, smart scaling)
             $previewSuccess = Media::generateVideoThumb($targetOriginal, $targetPreview, 1600);
+
+            if ($previewSuccess) {
+                // If preview generated, use it to make the thumbnail
+                $thumbSuccess = Media::generateResized($targetPreview, $targetThumb, 480, 480);
+            } else {
+                // Fallback
+                $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+            }
         }
     } catch (Exception $e) {
-        // Log media generation error but don't fail upload
         error_log("Media generation failed: " . $e->getMessage());
     }
 
@@ -264,12 +269,14 @@ function processFile($sourcePath, $originalName, $mimeType, $fileSize, $user) {
     }
 
     // Save to DB
-    $shareToken = bin2hex(random_bytes(16));
-    $stmt = $pdo->prepare('INSERT INTO posts (user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path)
-        VALUES (:uid, :title, :created, "public", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview)');
+    $shareToken = bin2hex(random_bytes(32));
+    // Updated for new schema: owner_user_id and default visibility=private
+    $stmt = $pdo->prepare('INSERT INTO posts (user_id, owner_user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path)
+        VALUES (:uid, :owner_uid, :title, :created, "private", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview)');
 
     $stmt->execute([
         ':uid' => $user['id'],
+        ':owner_uid' => $user['id'],
         ':title' => pathinfo($originalName, PATHINFO_FILENAME),
         ':created' => time(),
         ':token' => $shareToken,

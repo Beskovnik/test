@@ -23,11 +23,21 @@ $postId = (int)$input['post_id'];
 $body = trim($input['body']);
 
 if (strlen($body) > 1000) {
-    Response::error('Comment too long');
+    Response::error('Komentar je predolg (max 1000 znakov).');
+}
+if (strlen($body) < 1) {
+    Response::error('Prazen komentar.');
 }
 
 $pdo = Database::connect();
-$stmt = $pdo->prepare('INSERT INTO comments (post_id, user_id, author_name, body, created_at) VALUES (?, ?, ?, ?, ?)');
+// Check if post exists
+$stmt = $pdo->prepare('SELECT id FROM posts WHERE id = ?');
+$stmt->execute([$postId]);
+if (!$stmt->fetch()) {
+    Response::error('Objava ne obstaja.');
+}
+
+$stmt = $pdo->prepare('INSERT INTO comments (post_id, user_id, author_name, body, created_at, status) VALUES (?, ?, ?, ?, ?, "visible")');
 $stmt->execute([$postId, $user['id'], $user['username'], $body, time()]);
 
 Response::json(['ok' => true]);

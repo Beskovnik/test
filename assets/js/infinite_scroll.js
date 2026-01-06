@@ -30,23 +30,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newGroups = doc.querySelectorAll('.time-group');
 
                 if (newGroups.length > 0) {
+                    let lastGroup = document.querySelector('.time-group:last-of-type');
+
                     newGroups.forEach(group => {
                         // Check if last group on page has same title (date)
-                        const allGroups = document.querySelectorAll('.time-group');
-                        const lastGroup = allGroups.length > 0 ? allGroups[allGroups.length - 1] : null;
-                        const groupTitle = group.querySelector('h2').textContent;
+                        const groupTitleEl = group.querySelector('h2');
+                        const groupTitle = groupTitleEl ? groupTitleEl.textContent.trim() : null;
 
-                        if (lastGroup && lastGroup.querySelector('h2').textContent === groupTitle) {
-                            // Merge grids by moving elements (preserves events/state)
+                        let lastGroupTitle = null;
+                        if (lastGroup) {
+                            const lastTitleEl = lastGroup.querySelector('h2');
+                            lastGroupTitle = lastTitleEl ? lastTitleEl.textContent.trim() : null;
+                        }
+
+                        if (lastGroup && groupTitle && lastGroupTitle === groupTitle) {
+                            // Merge same-day groups in infinite scroll logic
+                            // If the new group has the same title as the last group on the page (e.g., "Danes"),
+                            // we merge the grids to avoid duplicate headers and preserve visual continuity.
                             const sourceGrid = group.querySelector('.grid');
                             const targetGrid = lastGroup.querySelector('.grid');
 
-                            while (sourceGrid.firstChild) {
-                                targetGrid.appendChild(sourceGrid.firstChild);
+                            if (sourceGrid && targetGrid) {
+                                while (sourceGrid.firstChild) {
+                                    targetGrid.appendChild(sourceGrid.firstChild);
+                                }
                             }
                         } else {
                             // Append new group before pagination/sentinel
-                             sentinel.parentNode.insertBefore(group, sentinel);
+                            sentinel.parentNode.insertBefore(group, sentinel);
+                            lastGroup = group;
                         }
                     });
 
