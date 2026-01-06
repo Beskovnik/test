@@ -175,16 +175,129 @@
         }
 
         // 3.3 Visibility Toggle
+    // CSRF & Request Helper
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Date Formatter
+    function formatDate(isoString) {
+        if (!isoString) return '—';
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return '—';
+
+            return new Intl.DateTimeFormat('sl-SI', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            }).format(date);
+        } catch (e) {
+            return '—';
+        }
+    }
+
+    // Share Modal Logic
+    window.openShareModal = async function(mediaIds) {
+        if (!mediaIds || mediaIds.length === 0) return;
+
+        const title = prompt('Ime deljene zbirke (opcijsko):', 'Album ' + new Date().toLocaleDateString());
+        if (title === null) return; // cancelled
+
+        try {
+            const res = await fetch('/api/share/create.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    title: title,
+                    media_ids: mediaIds
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                const link = window.location.origin + data.share_url;
+                // Show modal with link
+                let modal = document.createElement('div');
+                modal.className = 'modal open';
+                modal.style.zIndex = '10000';
+                modal.innerHTML = `
+                    <div class="card" style="padding:2rem; max-width:500px; margin:auto; position:relative; top:20%;">
+                        <h3 style="margin-top:0">Povezava ustvarjena!</h3>
+                        <input type="text" value="${link}" readonly style="width:100%; padding:0.5rem; margin:1rem 0; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white;">
+                        <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+                            <button class="button" onclick="navigator.clipboard.writeText('${link}'); this.innerText='Kopirano!';">Kopiraj</button>
+                            <button class="button ghost" onclick="this.closest('.modal').remove()">Zapri</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } else {
+                showToast('error', data.error);
+            }
+        } catch (e) {
+            showToast('error', 'Napaka pri ustvarjanju delitve');
+            console.error(e);
+        }
+    };
+
+    // View Page Logic
+    const viewPage = document.querySelector('.view-page');
+    if (viewPage) {
+        initViewPage();
+    }
+
+    function initViewPage() {
+        const commentsSection = document.getElementById('commentsSection');
+        const likeBtn = document.getElementById('likeBtn');
+        const deleteBtns = document.querySelectorAll('#deleteBtn');
+        const shareBtns = document.querySelectorAll('#shareBtn[data-url]');
+        const commentList = document.getElementById('commentList');
+        const commentForm = document.getElementById('commentForm');
+        const viewCountEl = document.getElementById('viewCount');
+        const visibilitySelect = document.getElementById('visibilitySelect');
+
+        const postId = commentsSection?.dataset.id || likeBtn?.dataset.id || deleteBtns[0]?.dataset.id;
+        if (!postId) return;
+
+        const previewImage = document.querySelector('.media-panel .preview-image');
+        if (previewImage) {
+            previewImage.addEventListener('click', function() {
+                if (this.dataset.original) {
+                    this.src = this.dataset.original;
+                    this.classList.remove('preview-image');
+                }
+            });
+        }
+
+        incrementViewCount(postId);
+
+        shareBtns.forEach((btn) => {
+            btn.addEventListener('click', () => sharePost(btn.dataset.url));
+        });
+
+        deleteBtns.forEach((btn) => {
+            btn.addEventListener('click', () => deletePost(btn.dataset.id || postId));
+        });
+
+        if (likeBtn) {
+            likeBtn.addEventListener('click', () => toggleLike(likeBtn, postId));
+        }
+
+        if (commentList) {
+            loadComments();
+        }
+
+        if (commentForm) {
+            commentForm.addEventListener('submit', submitComment);
+        }
+
         if (visibilitySelect) {
             visibilitySelect.addEventListener('change', async function() {
-                const newVal = this.value;
                 try {
                     const res = await fetch('/api/media/visibility.php', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
                             media_id: postId,
-                            visibility: newVal,
+                            visibility: this.value,
                             csrf_token: csrfToken
                         })
                     });
@@ -254,24 +367,119 @@
         }
 
         // 3.7 Comments
+                    if (data.success) {
+                        showToast('success', 'Vidnost posodobljena');
+                    } else {
+                        showToast('error', data.error || 'Napaka pri shranjevanju');
+                    }
+                } catch (e) {
+                    showToast('error', 'Napaka pri shranjevanju');
+                }
+            });
+        }
+
+        async function incrementViewCount(id) {
+            if (!csrfToken) return;
+            try {
+                const res = await fetch('/api/view.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({post_id: id, csrf_token: csrfToken})
+                });
+                const data = await res.json();
+                if (data.ok && data.views && viewCountEl) {
+                    viewCountEl.textContent = '👁️ ' + data.views;
+                }
+            } catch (e) {
+                console.error('View increment failed', e);
+            }
+        }
+
+        async function sharePost(url) {
+            if (!url) return;
+            const fullUrl = window.location.origin + url;
+            try {
+                await navigator.clipboard.writeText(fullUrl);
+                showToast('success', 'Povezava kopirana!');
+            } catch (err) {
+                prompt('Kopiraj povezavo:', fullUrl);
+            }
+        }
+
+        async function deletePost(id) {
+            if (!confirm('Res želiš izbrisati to objavo?')) return;
+            if (!csrfToken) {
+                showToast('error', 'Niste prijavljeni.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/post_delete.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id, csrf_token: csrfToken})
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    window.location.href = '/index.php';
+                } else {
+                    showToast('error', data.error || 'Napaka pri brisanju');
+                }
+            } catch (e) {
+                showToast('error', 'Napaka omrežja');
+            }
+        }
+
+        async function toggleLike(btn, id) {
+            if (!csrfToken) {
+                showToast('error', 'Za všečkanje se morate prijaviti.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/like.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({post_id: id, csrf_token: csrfToken})
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    btn.classList.toggle('active', data.liked);
+                    const icon = btn.querySelector('.like-icon');
+                    const label = btn.querySelector('.like-label');
+                    const count = btn.querySelector('.like-count');
+
+                    if (icon) icon.textContent = data.liked ? '❤️' : '🤍';
+                    if (label) label.textContent = data.liked ? 'Všečkano' : 'Všečkaj';
+                    if (count) count.textContent = data.count;
+                } else if (data.error === 'CSRF Error') {
+                    showToast('error', 'Napaka seje. Osveži stran.');
+                } else {
+                    showToast('error', data.error || 'Napaka');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
         async function loadComments() {
-            if (!commentList) return;
             try {
                 const res = await fetch(`/api/comment_list.php?post_id=${postId}`);
                 const data = await res.json();
+                if (!commentList) return;
                 commentList.innerHTML = '';
                 if (data.ok && data.comments && data.comments.length) {
                     data.comments.forEach(c => {
+                    data.comments.forEach((comment) => {
                         const div = document.createElement('div');
                         div.className = 'comment-item';
                         div.style.marginBottom = '1rem';
-                        const dateStr = formatDate(c.created_at);
+                        const dateStr = formatDate(comment.created_at);
                         div.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.25rem;">
-                                <strong>${c.author}</strong>
+                                <strong>${comment.author}</strong>
                                 <span style="font-size:0.8em; color:var(--muted);">${dateStr}</span>
                             </div>
                             <div style="word-break: break-word; color: #ddd;">${c.body}</div>
+                            <div style="word-break: break-word;">${comment.body}</div>
                         `;
                         commentList.appendChild(div);
                     });
@@ -319,5 +527,41 @@
 
     // Initialize View Page logic on load
     document.addEventListener('DOMContentLoaded', initViewPage);
+                if (commentList) {
+                    commentList.innerHTML = '<p class="error">Napaka pri nalaganju.</p>';
+                }
+            }
+        }
+
+        async function submitComment(event) {
+            event.preventDefault();
+            if (!csrfToken) {
+                showToast('error', 'Niste prijavljeni.');
+                return;
+            }
+            const bodyInput = commentForm.querySelector('textarea');
+            const body = bodyInput.value.trim();
+            if (!body) return;
+
+            try {
+                const res = await fetch('/api/comment_add.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({post_id: postId, body, csrf_token: csrfToken})
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    commentForm.reset();
+                    loadComments();
+                    showToast('success', 'Komentar objavljen.');
+                } else {
+                    showToast('error', data.error || 'Napaka pri objavi.');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('error', 'Napaka omrežja.');
+            }
+        }
+    }
 
 })();
