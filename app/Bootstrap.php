@@ -7,8 +7,10 @@ require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/Auth.php';
 require_once __DIR__ . '/Media.php';
 require_once __DIR__ . '/Audit.php';
+require_once __DIR__ . '/Migrator.php';
 
 use App\Database;
+use App\Migrator;
 
 // Debugging Setup
 ini_set('display_errors', '1');
@@ -140,7 +142,7 @@ $pdo->exec(
 
 // Audit Log
 $pdo->exec(
-    'CREATE TABLE IF NOT EXISTS audit_log (
+    'CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         admin_user_id INTEGER,
         action TEXT,
@@ -148,6 +150,8 @@ $pdo->exec(
         created_at INTEGER
     )'
 );
+// Ensure DB Schema via Migrations
+Migrator::migrate($pdo);
 
 // Helpers
 function app_pdo(): PDO {
