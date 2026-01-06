@@ -5,11 +5,11 @@ require __DIR__ . '/includes/layout.php';
 use App\Auth;
 use App\Database;
 
-$user = Auth::requireLogin();
+$share = $_GET['s'] ?? null;
+$user = $share ? Auth::user() : Auth::requireLogin();
 $pdo = Database::connect();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
-$share = $_GET['s'] ?? null;
 
 if ($id) {
     $stmt = $pdo->prepare('SELECT posts.*, users.username FROM posts LEFT JOIN users ON posts.user_id = users.id WHERE posts.id = :id');
@@ -93,7 +93,7 @@ if ($post['type'] === 'video') {
     $mediaHtml = "<img src=\"{$p}\" data-original=\"{$o}\" alt=\"{$title}\" class=\"preview-image\" loading=\"lazy\" onclick=\"this.src=this.dataset.original; this.classList.remove('preview-image');\" style=\"max-width:100%;max-height:100%;object-fit:contain;\">";
 }
 
-$shareUrl = '/view.php?s=' . urlencode($post['share_token']);
+$shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
 ?>
 <div class="view-page">
     <div class="media-panel">

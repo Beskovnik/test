@@ -26,7 +26,7 @@ $data = array_map(function($c) {
         'id' => (int)$c['id'],
         'author' => htmlspecialchars($c['author'] ?? $c['author_name'] ?? 'Anon'),
         'body' => htmlspecialchars($c['body']),
-        'created_at' => date('d.m.Y H:i', (int)$c['created_at'])
+        'created_at' => date('c', (int)$c['created_at']) // ISO 8601
     ];
 }, $comments);
 

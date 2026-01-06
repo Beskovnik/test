@@ -7,12 +7,13 @@ use App\Auth;
 
 function render_header(string $title, ?array $user, string $active = 'feed'): void
 {
-    // Need global $pdo for settings. $errors from bootstrap.
+    // Need global $pdo for settings and $errors for bootstrap setup warnings.
     global $pdo, $errors;
 
     $accentColor = Settings::get($pdo, 'accent_color', '#4b8bff');
-    // Default page scale 100% if not set
-    $pageScale = (int)Settings::get($pdo, 'page_scale', '100');
+    // Admin Setting UI Scale
+    $uiScale = Settings::get($pdo, 'ui_scale', '1.0');
+
     $bgType = Settings::get($pdo, 'bg_type', 'default');
     $bgValue = Settings::get($pdo, 'bg_value', '');
 
@@ -26,16 +27,34 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
         $bgStyle = 'background: url(' . htmlspecialchars($bgValue) . ') no-repeat center center fixed; background-size: cover;';
     }
 
-    // Default font size 16px = 100%. Scale adjusts this percentage on html.
-    $htmlStyle = "font-size: {$pageScale}%;";
+    echo '<!DOCTYPE html><html lang="sl" style="font-size: 16px;">';
+    // ^ Base 16px, real size handled by var(--ui-final-scale) calc in CSS on body or html
+    // Wait, prompt said: "Na resize ... posodobi style: --ui-auto-scale. Nato izračunaj --ui-final-scale ali direktno nastavi --ui-auto-scale in v CSS množiš"
+    // So I will inject --ui-scale here.
 
-    echo '<!DOCTYPE html><html lang="sl" style="' . $htmlStyle . '"><head>';
+    echo '<head>';
     echo '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<meta name="csrf-token" content="' . $csrf . '">';
     echo '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>';
     echo '<link rel="stylesheet" href="/assets/css/app.css">';
     echo '<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">';
-    echo '<style>:root { --accent: ' . htmlspecialchars($accentColor) . '; } body { ' . $bgStyle . ' }</style>';
+
+    // Inject Variables
+    // Default auto-scale to 1.0 (JS will update it).
+    // Formula: final = scale * auto
+    echo '<style>';
+    echo ':root { ';
+    echo '--accent: ' . htmlspecialchars($accentColor) . '; ';
+    echo '--ui-scale: ' . htmlspecialchars($uiScale) . '; ';
+    echo '--ui-auto-scale: 1.0; ';
+    echo '}';
+
+    // Apply scaling to html font-size
+    echo 'html { font-size: calc(16px * var(--ui-scale) * var(--ui-auto-scale)); }';
+
+    echo 'body { ' . $bgStyle . ' }';
+    echo '</style>';
+
     echo '</head><body>';
 
     // Error Toast
