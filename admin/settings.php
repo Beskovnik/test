@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate upload limits
     if ($maxImageGb < 0.1 || $maxImageGb > 50) $maxImageGb = 5.0;
     if ($maxVideoGb < 0.1 || $maxVideoGb > 50) $maxVideoGb = 5.0;
-    if ($maxFiles < 1 || $maxFiles > 20) $maxFiles = 10;
+    if ($maxFiles < 1 || $maxFiles > 100) $maxFiles = 10;
 
     setting_set($pdo, 'accent_color', $accent);
     setting_set($pdo, 'page_scale', (string)$pageScale);
@@ -147,7 +147,7 @@ $showServerWarning = $serverLimitBytes < $appLimitBytes;
 
         <div class="form-group">
             <label>Max datotek naenkrat</label>
-            <input type="number" name="max_files_per_upload" min="1" max="20" value="<?php echo $maxFiles; ?>">
+            <input type="number" name="max_files_per_upload" min="1" max="100" value="<?php echo $maxFiles; ?>">
             <small class="text-muted">Strežnik trenutno: Upload limit ≈ <?php echo $serverLimitFormatted; ?></small>
         </div>
 
