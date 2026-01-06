@@ -89,3 +89,4 @@ render_header('Prijava', null);
 </div>
 <?php
 render_footer();
+?>
