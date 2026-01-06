@@ -13,23 +13,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
 
     // Limits
-    $maxImageGb = (float)$_POST['max_image_gb'];
-    $maxVideoGb = (float)$_POST['max_video_gb'];
+    $maxImageGb = str_replace(',', '.', (string)$_POST['max_image_gb']);
+    $maxVideoGb = str_replace(',', '.', (string)$_POST['max_video_gb']);
     $maxFiles = (int)$_POST['max_files_per_upload'];
-    $uiScale = (float)$_POST['ui_scale'];
+    $uiScale = str_replace(',', '.', (string)$_POST['ui_scale']);
 
     // Validation logic...
     if ($maxFiles > 100) $maxFiles = 100;
-    if ($uiScale < 0.8) $uiScale = 0.8;
-    if ($uiScale > 1.2) $uiScale = 1.2;
 
-    Settings::set($pdo, 'max_image_gb', (string)$maxImageGb);
-    Settings::set($pdo, 'max_video_gb', (string)$maxVideoGb);
+    // Validate UI Scale
+    $uiScaleVal = (float)$uiScale;
+    if ($uiScaleVal < 0.8) $uiScale = '0.8';
+    elseif ($uiScaleVal > 1.2) $uiScale = '1.2';
+    // Else keep original string to preserve "1.0" format
+
+    Settings::set($pdo, 'max_image_gb', $maxImageGb);
+    Settings::set($pdo, 'max_video_gb', $maxVideoGb);
     Settings::set($pdo, 'max_files_per_upload', (string)$maxFiles);
 
     // UI Settings
     Settings::set($pdo, 'accent_color', $_POST['accent_color']);
-    Settings::set($pdo, 'ui_scale', (string)$uiScale);
+    Settings::set($pdo, 'ui_scale', $uiScale);
 
     // ARSO Weather Settings
     Settings::set($pdo, 'weather_arso_location', $_POST['weather_arso_location']);
