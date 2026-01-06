@@ -57,7 +57,7 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     // Apply scaling to html font-size
     echo 'html { font-size: calc(16px * var(--ui-scale) * var(--ui-auto-scale)); }';
 
-    echo 'body { ' . $bgStyle . ' }';
+    echo 'body { ' . $bgStyle . ' zoom: calc(var(--ui-scale) * var(--ui-auto-scale)); }';
     echo '</style>';
 
     echo '</head><body>';
