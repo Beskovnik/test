@@ -30,18 +30,9 @@ foreach (['/uploads/original', '/uploads/thumbs', '/uploads/preview'] as $dir) {
     }
 }
 
-// Audit log might not exist, creating placeholder logic or table
-$pdo->exec('CREATE TABLE IF NOT EXISTS audit_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    admin_user_id INTEGER,
-    action TEXT,
-    meta TEXT,
-    created_at INTEGER
-)');
-
-$stmt = $pdo->prepare('SELECT audit_log.*, users.username FROM audit_log LEFT JOIN users ON audit_log.admin_user_id = users.id ORDER BY created_at DESC LIMIT 10');
-$stmt->execute();
-$audit = $stmt->fetchAll();
+// Ensure audit logs table exists
+\App\Audit::ensureTableExists($pdo);
+$audit = \App\Audit::getLogs($pdo, 10);
 
 require __DIR__ . '/../includes/layout.php';
 render_header('Admin Dashboard', $user, 'admin');
