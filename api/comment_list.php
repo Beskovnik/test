@@ -22,7 +22,7 @@ $comments = $stmt->fetchAll();
 $data = array_map(function($c) {
     return [
         'id' => $c['id'],
-        'author' => $c['author'] ?? $c['author_name'] ?? 'Anon',
+        'author' => htmlspecialchars($c['author'] ?? $c['author_name'] ?? 'Anon'),
         'body' => htmlspecialchars($c['body']),
         'created_at' => $c['created_at']
     ];

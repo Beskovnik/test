@@ -112,18 +112,19 @@ class Media
         return $res;
     }
 
-    public static function generateVideoThumb(string $source, string $target, int $width = 480): bool
+    public static function generateVideoThumb(string $source, string $target, int $maxWidth = 480): bool
     {
         if (self::isFfmpegAvailable()) {
             // Seek to 0.1s instead of 1s to better handle short videos
             $cmd = sprintf(
+                'ffmpeg -y -ss 1 -i %s -frames:v 1 -vf "scale=\'min(%d,iw)\':-2" %s 2>&1',
                 'ffmpeg -y -ss 0.1 -i %s -frames:v 1 -vf "scale=\'min(%d,iw)\':-1" %s 2>&1',
                 escapeshellarg($source),
-                $width,
+                $maxWidth,
                 escapeshellarg($target)
             );
             shell_exec($cmd);
-            return file_exists($target);
+            return file_exists($target) && filesize($target) > 0;
         }
         return false; // Or placeholder
     }
