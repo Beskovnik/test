@@ -23,7 +23,7 @@ def verify_glassmorphism():
             if "blur" not in sidebar_backdrop:
                 # Note: some browsers might report 'none' if hardware accel issues,
                 # but standard headless chromium usually reports it.
-                # However, if it fails, we should check if it's applied in CSS at all.
+                # If it reports 'none' (fails), we check if it's applied in CSS at all as a fallback.
                 print("Computed style does not contain 'blur'. Checking CSS rules explicitly...")
 
                 is_applied_in_css = page.evaluate("""() => {
