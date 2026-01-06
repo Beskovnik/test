@@ -30,8 +30,7 @@ foreach (['/uploads/original', '/uploads/thumbs', '/uploads/preview'] as $dir) {
     }
 }
 
-// Ensure audit logs table exists
-\App\Audit::ensureTableExists($pdo);
+// Get audit logs
 $audit = \App\Audit::getLogs($pdo, 10);
 
 require __DIR__ . '/../includes/layout.php';
