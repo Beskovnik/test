@@ -31,7 +31,7 @@ render_header('Naloži datoteke', $user, 'upload');
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                <h2 class="upload-title">Povleci datoteke sem</h2>
+                <h2 class="upload-title">Povleči datoteke sem</h2>
                 <p class="upload-subtitle">ali tapni za izbor (max <?php echo $maxFiles; ?>)</p>
                 <input type="file" id="fileInput" name="files[]" multiple accept="image/*,video/*" class="file-input" style="display:none;">
             </div>
