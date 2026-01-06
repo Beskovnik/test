@@ -22,6 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $u = $stmt->fetch();
 
     if ($u && password_verify($password, $u['pass_hash'])) {
+        $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+        if ($adminCount === 0) {
+            $promote = $pdo->prepare('UPDATE users SET role = :role WHERE id = :id');
+            $promote->execute([
+                ':role' => 'admin',
+                ':id' => $u['id'],
+            ]);
+            $u['role'] = 'admin';
+        }
         $_SESSION['user_id'] = $u['id'];
         redirect('/index.php');
     } else {
@@ -70,3 +79,4 @@ render_header('Prijava', null);
 </div>
 <?php
 render_footer();
+?>
