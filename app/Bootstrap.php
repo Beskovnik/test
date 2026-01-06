@@ -56,6 +56,19 @@ set_exception_handler(function ($e) {
         <h1>Critical Error</h1>
         <p>" . htmlspecialchars($e->getMessage()) . "</p>
     </div>";
+
+    if (!empty($debug_log)) {
+        echo '<div id="debug-bar" style="position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#0f0; padding:10px; z-index:9999; max-height:200px; overflow-y:auto; font-family:monospace; border-top: 2px solid #0f0;">';
+        echo '<div style="font-weight:bold; border-bottom:1px solid #333; margin-bottom:5px;">DEBUG INFO</div>';
+        foreach ($debug_log as $log) {
+            echo '<div style="margin-bottom:2px;">';
+            echo '<span style="color:#ff0000;">[' . htmlspecialchars((string)$log['type']) . ']</span> ';
+            echo htmlspecialchars((string)$log['message']) . ' ';
+            echo '<span style="color:#888;">(' . htmlspecialchars((string)$log['file']) . ':' . $log['line'] . ')</span>';
+            echo '</div>';
+        }
+        echo '</div>';
+    }
 });
 
 if (session_status() === PHP_SESSION_NONE) {
