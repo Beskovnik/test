@@ -6,6 +6,7 @@ require_once __DIR__ . '/Response.php';
 require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/Auth.php';
 require_once __DIR__ . '/Media.php';
+require_once __DIR__ . '/Audit.php';
 
 use App\Database;
 
@@ -25,7 +26,6 @@ set_error_handler(function ($severity, $message, $file, $line) {
         'file' => $file,
         'line' => $line
     ];
-    // Return false to let normal error handling continue (printing to screen if display_errors is on)
     return false;
 });
 
@@ -41,22 +41,20 @@ set_exception_handler(function ($e) {
     if (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json')) {
         \App\Response::error('Internal Server Error', 'EXCEPTION', 500);
     }
-    // We want to show the debug bar even on exception if possible, but PHP might stop.
-    // However, since we are in output buffering or just rendering, we might be able to print it.
-    // For now, let's just dump it if possible or rely on the visible output.
     echo "<div style='background:red;color:white;padding:10px;border:1px solid darkred;'>CRITICAL EXCEPTION: " . htmlspecialchars($e->getMessage()) . "</div>";
 });
 
 session_start();
 
-// Request ID for tracing
+// Request ID
 if (!isset($_SERVER['REQUEST_ID'])) {
     $_SERVER['REQUEST_ID'] = uniqid('req_', true);
 }
 
 $pdo = Database::connect();
 
-// Ensure DB Schema (Simplified migration check)
+// Ensure DB Schema
+// Users
 $pdo->exec(
     'CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,7 +67,74 @@ $pdo->exec(
     )'
 );
 
-// Helper functions for backward compatibility/ease of use in legacy files
+// Posts
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        title TEXT,
+        description TEXT,
+        created_at INTEGER NOT NULL,
+        visibility TEXT DEFAULT "public",
+        share_token TEXT,
+        type TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        thumb_path TEXT,
+        preview_path TEXT,
+        mime TEXT,
+        size_bytes INTEGER,
+        width INTEGER,
+        height INTEGER,
+        views INTEGER DEFAULT 0,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )'
+);
+
+// Comments
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )'
+);
+
+// Likes
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS likes (
+        user_id INTEGER NOT NULL,
+        post_id INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, post_id),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
+    )'
+);
+
+// Settings
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )'
+);
+
+// Audit Log
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_user_id INTEGER,
+        action TEXT,
+        meta TEXT,
+        created_at INTEGER
+    )'
+);
+
+// Helpers
 function app_pdo(): PDO {
     return Database::connect();
 }
