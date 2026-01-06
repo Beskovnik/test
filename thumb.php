@@ -35,6 +35,17 @@ $ext = strtolower(pathinfo($srcPath, PATHINFO_EXTENSION));
 $hash = md5($src . $w . $h . $fit . filemtime($srcPath));
 $cacheFile = $thumbsDir . '/' . $hash . '.' . $ext;
 
+// Browser Caching
+$etag = '"' . $hash . '"';
+header('ETag: ' . $etag);
+header('Cache-Control: public, max-age=31536000'); // 1 year
+header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+
+if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
+    header('HTTP/1.1 304 Not Modified');
+    exit;
+}
+
 // Check cache
 if (file_exists($cacheFile)) {
     $mime = mime_content_type($cacheFile);
