@@ -306,3 +306,4 @@
 
     initUI();
 })();
+// End of uploader script

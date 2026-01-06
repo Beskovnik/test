@@ -32,7 +32,7 @@ render_header('Naloži datoteke', $user, 'upload');
 
     <div class="card" style="padding: 2rem;">
         <div class="uploader-container">
-            <div class="drop-zone" id="dropZone" style="border: 2px dashed var(--border); background: rgba(255,255,255,0.02);">
+            <div class="upload-drop-zone" id="dropZone">
                 <div class="drop-content">
                     <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -43,7 +43,7 @@ render_header('Naloži datoteke', $user, 'upload');
                     <p class="upload-subtitle">ali tapni za izbor (max <?php echo $maxFiles; ?>)</p>
                     <input type="file" id="fileInput" name="files[]" multiple accept="image/*,video/*" class="file-input" style="display:none;">
                 </div>
-                <div class="upload-limits" style="margin-top:1.5rem; color:var(--muted); font-size:0.9rem;">
+                <div class="upload-limits-text">
                     Max slika: <?php echo $maxImageGb; ?> GB • Max video: <?php echo $maxVideoGb; ?> GB • Max: <?php echo $maxFiles; ?> datotek
                 </div>
             </div>
@@ -52,13 +52,7 @@ render_header('Naloži datoteke', $user, 'upload');
     </div>
 </div>
 <script>
-    // Trigger file input on click
-    document.getElementById('dropZone').addEventListener('click', function(e) {
-        if (e.target.tagName !== 'INPUT') {
-            document.getElementById('fileInput').click();
-        }
-    });
-
+    // Config from Server
     window.APP_LIMITS = {
         maxFiles: <?php echo $maxFiles; ?>,
         maxImageBytes: <?php echo $maxImageBytes; ?>,
