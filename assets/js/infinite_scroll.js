@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         if (lastGroup && groupTitle && lastGroupTitle === groupTitle) {
-                            // IMPROVED: Merge same-day groups in infinite scroll logic
+                            // Merge same-day groups in infinite scroll logic
                             // If the new group has the same title as the last group on the page (e.g., "Danes"),
                             // we merge the grids to avoid duplicate headers and preserve visual continuity.
                             const sourceGrid = group.querySelector('.grid');
