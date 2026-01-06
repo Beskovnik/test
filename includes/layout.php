@@ -90,6 +90,7 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     echo $makeLink('feed', '/index.php', 'Moje Slike');
     echo $makeLink('videos', '/index.php?type=video&nav=videos', 'Moji Videi');
     echo $makeLink('public', '/index.php?view=public&nav=public', 'Javno');
+    echo $makeLink('weather', '/weather.php', 'Vreme');
     echo $makeLink('myshares', '/my-shares.php', 'Moje Delitve');
     echo $makeLink('upload', '/upload.php', 'Upload');
     if ($isAdmin) {
