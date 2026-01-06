@@ -87,12 +87,13 @@ class Media
         return $res;
     }
 
-    public static function generateVideoThumb(string $source, string $target): bool
+    public static function generateVideoThumb(string $source, string $target, int $width = 480): bool
     {
         if (self::isFfmpegAvailable()) {
             $cmd = sprintf(
-                'ffmpeg -y -ss 1 -i %s -frames:v 1 -vf "scale=480:-1" %s 2>&1',
+                'ffmpeg -y -ss 1 -i %s -frames:v 1 -vf "scale=%d:-1" %s 2>&1',
                 escapeshellarg($source),
+                $width,
                 escapeshellarg($target)
             );
             shell_exec($cmd);
