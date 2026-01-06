@@ -1,12 +1,12 @@
 <?php
-// View page for single post
-require __DIR__ . '/includes/bootstrap.php';
-require __DIR__ . '/includes/auth.php';
-require __DIR__ . '/includes/csrf.php';
-require __DIR__ . '/includes/media.php';
-require __DIR__ . '/includes/layout.php';
+require __DIR__ . '/app/Bootstrap.php';
 
-$user = current_user($pdo);
+use App\Auth;
+use App\Database;
+
+$user = Auth::user();
+$pdo = Database::connect();
+
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $share = $_GET['s'] ?? null;
 
@@ -17,7 +17,8 @@ if ($id) {
     $stmt = $pdo->prepare('SELECT posts.*, users.username FROM posts LEFT JOIN users ON posts.user_id = users.id WHERE posts.share_token = :token');
     $stmt->execute([':token' => $share]);
 } else {
-    redirect('/index.php');
+    header('Location: /index.php');
+    exit;
 }
 
 $post = $stmt->fetch();
@@ -27,67 +28,182 @@ if (!$post) {
     exit;
 }
 
-// Rename logic
-$typeLabel = $post['type'] === 'video' ? 'video' : 'slika';
-$post['title'] = $post['id'] . ' ' . $typeLabel;
-
+// Access Check
 if ($post['visibility'] !== 'public' && !$user) {
-    redirect('/login.php');
+    header('Location: /login.php');
+    exit;
 }
 
-$likeCount = fetch_like_count($pdo, (int)$post['id']);
+// Increment Views (Async or Simple)
+// For simplicity, we do it here, but ideally this is an async task
+$pdo->prepare('UPDATE posts SET views = views + 1 WHERE id = :id')->execute([':id' => $post['id']]);
+
+// Like Status
+$likeCount = $pdo->prepare('SELECT COUNT(*) FROM likes WHERE post_id = ?');
+$likeCount->execute([$post['id']]);
+$likeCount = (int)$likeCount->fetchColumn();
+
 $liked = false;
 if ($user) {
-    $stmt = $pdo->prepare('SELECT 1 FROM likes WHERE post_id = :post AND user_id = :user');
-    $stmt->execute([':post' => $post['id'], ':user' => $user['id']]);
-    $liked = (bool)$stmt->fetchColumn();
+    $checkLike = $pdo->prepare('SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?');
+    $checkLike->execute([$post['id'], $user['id']]);
+    $liked = (bool)$checkLike->fetchColumn();
 }
 
-render_header($post['title'], $user);
-render_flash($flash ?? null);
+// UI
+require __DIR__ . '/includes/layout.php';
 
-// Use preview if available, otherwise original
-$previewSrc = !empty($post['preview_path']) ? $post['preview_path'] : $post['file_path'];
-$originalSrc = $post['file_path'];
+$title = $post['id'] . ' ' . ($post['type'] === 'video' ? 'video' : 'slika');
+render_header($title, $user);
 
-$media = $post['type'] === 'video'
-    ? '<video src="/' . htmlspecialchars($originalSrc, ENT_QUOTES, 'UTF-8') . '" poster="/' . htmlspecialchars(!empty($post['preview_path']) ? $post['preview_path'] : $post['thumb_path'], ENT_QUOTES, 'UTF-8') . '" controls></video>'
-    : '<img src="/' . htmlspecialchars($previewSrc, ENT_QUOTES, 'UTF-8') . '" data-original="/' . htmlspecialchars($originalSrc, ENT_QUOTES, 'UTF-8') . '" alt="' . htmlspecialchars($post['title'] ?? '', ENT_QUOTES, 'UTF-8') . '" class="preview-image" loading="lazy" onclick="this.src=this.dataset.original; this.classList.remove(\'preview-image\');">';
+$previewSrc = !empty($post['preview_path']) ? '/' . $post['preview_path'] : '/' . $post['file_path'];
+$originalSrc = '/' . $post['file_path'];
+$thumbSrc = !empty($post['thumb_path']) ? '/' . $post['thumb_path'] : $previewSrc;
 
-$shareUrl = '/view.php?s=' . urlencode($post['share_token']);
+$mediaHtml = '';
+if ($post['type'] === 'video') {
+    $poster = htmlspecialchars($previewSrc);
+    $src = htmlspecialchars($originalSrc);
+    $mediaHtml = "<video src=\"{$src}\" poster=\"{$poster}\" controls autoplay muted loop></video>";
+} else {
+    $p = htmlspecialchars($previewSrc);
+    $o = htmlspecialchars($originalSrc);
+    // Click to load full res if different, or just zoom
+    $mediaHtml = "<img src=\"{$p}\" data-original=\"{$o}\" alt=\"{$title}\" class=\"preview-image\" loading=\"lazy\" onclick=\"this.src=this.dataset.original; this.classList.remove('preview-image');\">";
+}
 
+$shareUrl = '/view.php?s=' . urlencode($post['share_token']); // Full URL needs host, logic in JS for copy
 ?>
 <div class="view-page">
     <div class="media-panel">
-        <?php echo $media; ?>
+        <?php echo $mediaHtml; ?>
     </div>
     <div class="info-panel">
-        <h1><?php echo htmlspecialchars($post['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
-        <p class="meta">Objavil <?php echo htmlspecialchars($post['username'] ?? 'Anon', ENT_QUOTES, 'UTF-8'); ?></p>
+        <h1><?php echo htmlspecialchars($title); ?></h1>
+        <p class="meta">Objavil <?php echo htmlspecialchars($post['username'] ?? 'Anon'); ?></p>
         <?php if ($post['description']) : ?>
-            <p><?php echo nl2br(htmlspecialchars($post['description'], ENT_QUOTES, 'UTF-8')); ?></p>
+            <p><?php echo nl2br(htmlspecialchars($post['description'])); ?></p>
         <?php endif; ?>
+
+        <div class="stats-bar">
+            <span>👁️ <?php echo (int)$post['views'] + 1; ?></span>
+            <span>📅 <?php echo date('d.m.Y', (int)$post['created_at']); ?></span>
+        </div>
+
         <div class="actions">
-            <button class="button like" data-post-id="<?php echo (int)$post['id']; ?>">
+            <button class="button like <?php echo $liked ? 'active' : ''; ?>" id="likeBtn" data-id="<?php echo $post['id']; ?>">
+                <span class="like-icon"><?php echo $liked ? '❤️' : '🤍'; ?></span>
                 <span class="like-label"><?php echo $liked ? 'Všečkano' : 'Všečkaj'; ?></span>
                 <span class="like-count"><?php echo $likeCount; ?></span>
             </button>
-            <button class="button ghost" data-copy="<?php echo htmlspecialchars($shareUrl, ENT_QUOTES, 'UTF-8'); ?>">Deli</button>
+            <button class="button ghost" onclick="sharePost('<?php echo $shareUrl; ?>')">Deli 🔗</button>
+            <?php if ($user && ($user['role'] === 'admin' || $user['id'] === $post['user_id'])): ?>
+                <button class="button danger" onclick="deletePost(<?php echo $post['id']; ?>)">Izbriši 🗑️</button>
+            <?php endif; ?>
         </div>
-        <section class="comments" data-post-id="<?php echo (int)$post['id']; ?>">
+
+        <section class="comments" id="commentsSection" data-id="<?php echo $post['id']; ?>">
             <h2>Komentarji</h2>
-            <div class="comment-list"></div>
+            <div class="comment-list" id="commentList">
+                <!-- Loaded via JS -->
+            </div>
             <?php if ($user) : ?>
-                <form class="comment-form">
-                    <?php echo csrf_field(); ?>
-                    <textarea name="body" rows="3" placeholder="Dodaj komentar" required></textarea>
-                    <button class="button" type="submit">Objavi</button>
+                <form class="comment-form" id="commentForm">
+                    <textarea name="body" rows="3" placeholder="Dodaj komentar..." required></textarea>
+                    <button class="button small" type="submit">Objavi</button>
                 </form>
             <?php else : ?>
-                <p class="muted">Za komentiranje se prijavite.</p>
+                <p class="muted">Prijavi se za komentiranje.</p>
             <?php endif; ?>
         </section>
     </div>
 </div>
+
+<script>
+// Inline JS for View Actions (Refactor to app.js later if time permits)
+async function sharePost(url) {
+    const fullUrl = window.location.origin + url;
+    try {
+        await navigator.clipboard.writeText(fullUrl);
+        showToast('success', 'Povezava kopirana!');
+    } catch (err) {
+        prompt('Kopiraj povezavo:', fullUrl);
+    }
+}
+
+async function deletePost(id) {
+    if (!confirm('Res želiš izbrisati to objavo?')) return;
+    try {
+        const res = await fetch('/api/post_delete.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            window.location.href = '/index.php';
+        } else {
+            showToast('error', data.error || 'Napaka pri brisanju');
+        }
+    } catch (e) {
+        showToast('error', 'Napaka omrežja');
+    }
+}
+
+// Like Logic
+document.getElementById('likeBtn')?.addEventListener('click', async function() {
+    const id = this.dataset.id;
+    try {
+        const res = await fetch('/api/like.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({post_id: id, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            this.classList.toggle('active', data.liked);
+            this.querySelector('.like-icon').textContent = data.liked ? '❤️' : '🤍';
+            this.querySelector('.like-label').textContent = data.liked ? 'Všečkano' : 'Všečkaj';
+            this.querySelector('.like-count').textContent = data.count;
+        }
+    } catch (e) { console.error(e); }
+});
+
+// Comments Logic
+const commentList = document.getElementById('commentList');
+async function loadComments() {
+    const id = document.getElementById('commentsSection').dataset.id;
+    const res = await fetch(`/api/comment_list.php?post_id=${id}`);
+    const data = await res.json();
+    if (data.ok) {
+        commentList.innerHTML = data.comments.map(c => `
+            <div class="comment">
+                <strong>${c.author}</strong>
+                <p>${c.body}</p>
+                <small>${new Date(c.created_at * 1000).toLocaleString()}</small>
+            </div>
+        `).join('') || '<p class="muted">Ni komentarjev.</p>';
+    }
+}
+loadComments();
+
+document.getElementById('commentForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const body = this.body.value;
+    const id = document.getElementById('commentsSection').dataset.id;
+    const res = await fetch('/api/comment_add.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({post_id: id, body, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
+    });
+    const data = await res.json();
+    if (data.ok) {
+        this.reset();
+        loadComments();
+    } else {
+        showToast('error', data.error);
+    }
+});
+</script>
 <?php
 render_footer();
