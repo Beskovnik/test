@@ -34,10 +34,6 @@ if ($post['visibility'] !== 'public' && !$user) {
     exit;
 }
 
-// Increment Views (Async or Simple)
-// For simplicity, we do it here, but ideally this is an async task
-$pdo->prepare('UPDATE posts SET views = views + 1 WHERE id = :id')->execute([':id' => $post['id']]);
-
 // Like Status
 $likeCount = $pdo->prepare('SELECT COUNT(*) FROM likes WHERE post_id = ?');
 $likeCount->execute([$post['id']]);
@@ -86,7 +82,7 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token']); // Full URL needs 
         <?php endif; ?>
 
         <div class="stats-bar">
-            <span>👁️ <?php echo (int)$post['views'] + 1; ?></span>
+            <span id="viewCount">👁️ <?php echo (int)$post['views']; ?></span>
             <span>📅 <?php echo date('d.m.Y', (int)$post['created_at']); ?></span>
         </div>
 
@@ -120,6 +116,24 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token']); // Full URL needs 
 </div>
 
 <script>
+// Async View Increment
+document.addEventListener('DOMContentLoaded', async () => {
+    const id = <?php echo (int)$post['id']; ?>;
+    try {
+        const res = await fetch('/api/view.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({post_id: id, csrf_token: document.querySelector('meta[name="csrf-token"]').content})
+        });
+        const data = await res.json();
+        if (data.ok && data.views) {
+            document.getElementById('viewCount').textContent = '👁️ ' + data.views;
+        }
+    } catch (e) {
+        console.error('View increment failed', e);
+    }
+});
+
 // Inline JS for View Actions (Refactor to app.js later if time permits)
 async function sharePost(url) {
     const fullUrl = window.location.origin + url;
