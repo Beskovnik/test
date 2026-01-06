@@ -1,3 +1,4 @@
 _data/database.sqlite
 uploads/
 thumbs/
+node_modules/

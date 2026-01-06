@@ -47,7 +47,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.ok && data.views) {
                 const viewCountEl = document.getElementById('viewCount');
-                if (viewCountEl) viewCountEl.textContent = '👁️ ' + data.views;
+                if (viewCountEl) {
+                    // Update text node only, preserving the icon
+                    const icon = viewCountEl.querySelector('.material-icons');
+                    if (icon) {
+                        // Reconstruct preserving icon
+                        viewCountEl.innerHTML = '';
+                        viewCountEl.appendChild(icon);
+                        viewCountEl.appendChild(document.createTextNode(' ' + data.views));
+                    } else {
+                        // Fallback if icon missing
+                        viewCountEl.textContent = '👁️ ' + data.views;
+                    }
+                }
             }
         } catch (e) {
             console.error('View increment failed', e);
