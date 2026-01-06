@@ -94,10 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $random = bin2hex(random_bytes(16));
         $filename = $random . '.' . $ext;
-        $target = 'uploads/' . $filename;
-        $thumbTarget = 'thumbs/' . $random . '.jpg';
 
-        if (!move_uploaded_file($tmpName, __DIR__ . '/' . $target)) {
+        // Define paths
+        $targetOriginal = 'uploads/original/' . $filename;
+        $targetPreview = 'uploads/preview/' . $random . '.webp'; // WebP for preview
+        $targetThumb = 'uploads/thumbs/' . $random . '.webp'; // WebP for thumb
+
+        // Move Original
+        if (!move_uploaded_file($tmpName, __DIR__ . '/' . $targetOriginal)) {
             $responses[] = ['name' => $originalName, 'error' => 'Failed to move file'];
             continue;
         }
@@ -106,32 +110,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $height = null;
         $duration = null;
         $thumbSuccess = false;
+        $previewSuccess = false;
 
         if ($mediaType === 'image') {
-            $info = getimagesize(__DIR__ . '/' . $target);
+            $info = getimagesize(__DIR__ . '/' . $targetOriginal);
             if ($info) {
                 $width = $info[0];
                 $height = $info[1];
             }
-            $thumbSuccess = generate_image_thumb(__DIR__ . '/' . $target, __DIR__ . '/' . $thumbTarget);
+            // Generate Thumb (420px)
+            $thumbSuccess = generate_image_resized(__DIR__ . '/' . $targetOriginal, __DIR__ . '/' . $targetThumb, 420, 420);
+
+            // Generate Preview (1600px)
+            $previewSuccess = generate_image_resized(__DIR__ . '/' . $targetOriginal, __DIR__ . '/' . $targetPreview, 1600, 1600);
+
         } else {
-            $thumbSuccess = generate_video_thumb(__DIR__ . '/' . $target, __DIR__ . '/' . $thumbTarget);
+            // For video, we still generate a JPG/WebP thumb/preview (poster)
+            // But we might want to keep the "original" extension for thumb if we were using it before,
+            // but the new plan says WebP thumbs.
+            $targetThumb = 'uploads/thumbs/' . $random . '.jpg'; // FFmpeg usually outputs jpg easily
+            $targetPreview = 'uploads/preview/' . $random . '.jpg';
+
+            // Generate Thumb
+            $thumbSuccess = generate_video_thumb(__DIR__ . '/' . $targetOriginal, __DIR__ . '/' . $targetThumb);
+            // We can just use the thumb as preview for video or generate a higher res one
+            // Let's generate a higher res poster for preview
+            if (is_ffmpeg_available()) {
+                $cmd = sprintf(
+                    'ffmpeg -y -ss 1 -i %s -frames:v 1 -vf "scale=1600:-1" %s 2>&1',
+                    escapeshellarg(__DIR__ . '/' . $targetOriginal),
+                    escapeshellarg(__DIR__ . '/' . $targetPreview)
+                );
+                shell_exec($cmd);
+                $previewSuccess = file_exists(__DIR__ . '/' . $targetPreview);
+            }
         }
 
+        // Fallbacks
         if (!$thumbSuccess) {
             if ($mediaType === 'image') {
-                $thumbTarget = $target;
+                $targetThumb = $targetOriginal; // Fallback to original
             } else {
-                $thumbTarget = 'thumbs/placeholder.jpg';
-                if (!file_exists(__DIR__ . '/' . $thumbTarget)) {
-                    generate_placeholder_thumb(__DIR__ . '/' . $thumbTarget);
+                $targetThumb = 'thumbs/placeholder.jpg'; // We should probably move this placeholder to assets or something
+                if (!file_exists(__DIR__ . '/' . $targetThumb)) {
+                     generate_placeholder_thumb(__DIR__ . '/' . $targetThumb);
                 }
             }
         }
 
+        if (!$previewSuccess) {
+             if ($mediaType === 'image') {
+                $targetPreview = $targetOriginal;
+             } else {
+                $targetPreview = $targetThumb;
+             }
+        }
+
         $shareToken = bin2hex(random_bytes(16));
-        $stmt = $pdo->prepare('INSERT INTO posts (user_id, title, description, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, duration_sec, thumb_path)
-            VALUES (:user_id, :title, :description, :created_at, :visibility, :share_token, :type, :file_path, :mime, :size_bytes, :width, :height, :duration_sec, :thumb_path)');
+        $stmt = $pdo->prepare('INSERT INTO posts (user_id, title, description, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, duration_sec, thumb_path, preview_path)
+            VALUES (:user_id, :title, :description, :created_at, :visibility, :share_token, :type, :file_path, :mime, :size_bytes, :width, :height, :duration_sec, :thumb_path, :preview_path)');
         $stmt->execute([
             ':user_id' => $user['id'],
             ':title' => pathinfo($originalName, PATHINFO_FILENAME),
@@ -140,13 +177,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':visibility' => 'public',
             ':share_token' => $shareToken,
             ':type' => $mediaType,
-            ':file_path' => $target,
+            ':file_path' => $targetOriginal,
             ':mime' => $mime,
             ':size_bytes' => $size,
             ':width' => $width,
             ':height' => $height,
             ':duration_sec' => $duration,
-            ':thumb_path' => $thumbTarget,
+            ':thumb_path' => $targetThumb,
+            ':preview_path' => $targetPreview,
         ]);
 
         $responses[] = ['name' => $originalName, 'success' => true, 'post_id' => (int)$pdo->lastInsertId()];

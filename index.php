@@ -98,6 +98,7 @@ foreach ($grouped as $label => $items) {
     echo '<h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
     echo '<div class="grid">';
     foreach ($items as $item) {
+        // Use thumb_path which now points to /uploads/thumbs/...
         $thumb = '/' . $item['thumb_path'];
         $id = (int)$item['id'];
         $typeLabel = $item['type'] === 'video' ? 'video' : 'slika';
@@ -108,7 +109,7 @@ foreach ($grouped as $label => $items) {
         $fallback = $item['type'] === 'image' ? $original : '/assets/img/placeholder.svg';
 
         echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';
-        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy" onerror="this.onerror=null;this.src=\'' . $fallback . '\'">';
+        echo '<img src="' . $thumb . '" alt="' . $title . '" loading="lazy" width="420" height="420" style="object-fit: cover;" onerror="this.onerror=null;this.src=\'' . $fallback . '\'">';
         echo $badge;
         echo '<div class="card-meta">';
         echo '<h3>' . $title . '</h3>';
@@ -121,14 +122,13 @@ foreach ($grouped as $label => $items) {
     echo '</div></section>';
 }
 
-echo '<div class="pagination">';
-if ($page > 1) {
-    echo '<a class="button ghost" href="?page=' . ($page - 1) . '">Prejšnja</a>';
+// Infinite Scroll Sentinel
+if (count($posts) > 0) {
+    echo '<div id="scroll-sentinel" data-next-page="' . ($page + 1) . '" data-has-more="' . (count($posts) === $perPage ? 'true' : 'false') . '"></div>';
+    echo '<div class="loading-spinner hidden" id="feed-loader">Nalaganje...</div>';
+} else {
+     echo '<div class="no-more-posts">Ni več objav.</div>';
 }
-if (count($posts) === $perPage) {
-    echo '<a class="button ghost" href="?page=' . ($page + 1) . '">Naslednja</a>';
-}
-echo '</div>';
 
 $galleryJson = htmlspecialchars(json_encode($galleryData, JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8');
 echo '<script>window.galleryItems = ' . $galleryJson . ';</script>';

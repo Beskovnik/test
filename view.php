@@ -46,9 +46,13 @@ if ($user) {
 render_header($post['title'], $user);
 render_flash($flash ?? null);
 
+// Use preview if available, otherwise original
+$previewSrc = !empty($post['preview_path']) ? $post['preview_path'] : $post['file_path'];
+$originalSrc = $post['file_path'];
+
 $media = $post['type'] === 'video'
-    ? '<video src="/' . htmlspecialchars($post['file_path'], ENT_QUOTES, 'UTF-8') . '" controls></video>'
-    : '<img src="/' . htmlspecialchars($post['file_path'], ENT_QUOTES, 'UTF-8') . '" alt="' . htmlspecialchars($post['title'] ?? '', ENT_QUOTES, 'UTF-8') . '">';
+    ? '<video src="/' . htmlspecialchars($originalSrc, ENT_QUOTES, 'UTF-8') . '" poster="/' . htmlspecialchars(!empty($post['preview_path']) ? $post['preview_path'] : $post['thumb_path'], ENT_QUOTES, 'UTF-8') . '" controls></video>'
+    : '<img src="/' . htmlspecialchars($previewSrc, ENT_QUOTES, 'UTF-8') . '" data-original="/' . htmlspecialchars($originalSrc, ENT_QUOTES, 'UTF-8') . '" alt="' . htmlspecialchars($post['title'] ?? '', ENT_QUOTES, 'UTF-8') . '" class="preview-image" loading="lazy" onclick="this.src=this.dataset.original; this.classList.remove(\'preview-image\');">';
 
 $shareUrl = '/view.php?s=' . urlencode($post['share_token']);
 
