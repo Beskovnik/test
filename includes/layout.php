@@ -87,8 +87,10 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
         return '<a class="nav-link ' . $class . '" href="' . $href . '">' . $label . '</a>';
     };
 
-    echo $makeLink('feed', '/index.php', 'Slike');
-    echo $makeLink('videos', '/index.php?type=video&nav=videos', 'Video');
+    echo $makeLink('feed', '/index.php', 'Moje Slike');
+    echo $makeLink('videos', '/index.php?type=video&nav=videos', 'Moji Videi');
+    echo $makeLink('public', '/index.php?view=public&nav=public', 'Javno');
+    echo $makeLink('myshares', '/my-shares.php', 'Moje Delitve');
     echo $makeLink('upload', '/upload.php', 'Upload');
     if ($isAdmin) {
         echo $makeLink('admin', '/admin/index.php', 'Admin Panel');

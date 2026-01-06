@@ -269,12 +269,14 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
     }
 
     // Save to DB
-    $shareToken = bin2hex(random_bytes(16));
-    $stmt = $pdo->prepare('INSERT INTO posts (user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path)
-        VALUES (:uid, :title, :created, "public", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview)');
+    $shareToken = bin2hex(random_bytes(32));
+    // Updated for new schema: owner_user_id and default visibility=private
+    $stmt = $pdo->prepare('INSERT INTO posts (user_id, owner_user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path)
+        VALUES (:uid, :owner_uid, :title, :created, "private", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview)');
 
     $stmt->execute([
         ':uid' => $user['id'],
+        ':owner_uid' => $user['id'],
         ':title' => pathinfo($originalName, PATHINFO_FILENAME),
         ':created' => time(),
         ':token' => $shareToken,

@@ -190,6 +190,50 @@
         setTimeout(() => el.remove(), 3000);
     });
 
+    // Share Modal Logic
+    window.openShareModal = async function(mediaIds) {
+        if (!mediaIds || mediaIds.length === 0) return;
+
+        const title = prompt("Ime deljene zbirke (opcijsko):", "Album " + new Date().toLocaleDateString());
+        if (title === null) return; // cancelled
+
+        try {
+            const res = await fetch('/api/share/create.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    title: title,
+                    media_ids: mediaIds
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                const link = window.location.origin + data.share_url;
+                // Show modal with link
+                let m = document.createElement('div');
+                m.className = 'modal open';
+                m.style.zIndex = '10000';
+                m.innerHTML = `
+                    <div class="card" style="padding:2rem; max-width:500px; margin:auto; position:relative; top:20%;">
+                        <h3 style="margin-top:0">Povezava ustvarjena!</h3>
+                        <input type="text" value="${link}" readonly style="width:100%; padding:0.5rem; margin:1rem 0; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white;">
+                        <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+                            <button class="button" onclick="navigator.clipboard.writeText('${link}'); this.innerText='Kopirano!';">Kopiraj</button>
+                            <button class="button ghost" onclick="this.closest('.modal').remove()">Zapri</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(m);
+            } else {
+                window.showToast('error', data.error);
+            }
+        } catch (e) {
+            window.showToast('error', 'Napaka pri ustvarjanju delitve');
+            console.error(e);
+        }
+    };
+
     // View Page Logic
     document.addEventListener('DOMContentLoaded', () => {
         // Elements
@@ -209,6 +253,34 @@
 
         // Exit if not on view page (no postId found)
         if (!postId) return;
+
+        // Visibility Toggle Logic
+        const visibilitySelect = document.getElementById('visibilitySelect');
+        if (visibilitySelect) {
+            visibilitySelect.addEventListener('change', async function() {
+                const newVal = this.value;
+                try {
+                    const res = await fetch('/api/media/visibility.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            media_id: postId,
+                            visibility: newVal,
+                            csrf_token: csrfToken
+                        })
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        window.showToast('success', 'Vidnost posodobljena');
+                    } else {
+                        window.showToast('error', data.error);
+                        // Revert?
+                    }
+                } catch(e) {
+                    window.showToast('error', 'Napaka pri shranjevanju');
+                }
+            });
+        }
 
         // Async View Increment
         (async () => {

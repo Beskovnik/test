@@ -16,8 +16,19 @@ $perPage = 40;
 $offset = ($page - 1) * $perPage;
 
 // Build Query
-$where = ['visibility = "public"'];
+$viewMode = $_GET['view'] ?? 'my'; // 'my' (default) or 'public'
 $params = [];
+$where = [];
+
+if ($viewMode === 'public') {
+    $where[] = 'posts.visibility = "public"';
+    $feedTitle = 'Javno';
+} else {
+    // Default: My items
+    $where[] = 'posts.owner_user_id = :current_user';
+    $params[':current_user'] = $user['id'];
+    $feedTitle = 'Moje';
+}
 
 if ($typeFilter === 'video' || $typeFilter === 'image') {
     $where[] = 'type = :type';
@@ -61,7 +72,7 @@ foreach ($posts as $post) {
 }
 
 // Render Header
-render_header('Galerija', $user, $typeFilter === 'video' ? 'videos' : 'feed');
+render_header('Galerija' . ($viewMode === 'public' ? ' (Javno)' : ''), $user, $typeFilter === 'video' ? 'videos' : 'feed');
 
 if (!$posts && $page === 1) {
     echo '<div style="padding:4rem;text-align:center;color:var(--muted);font-size:1.2rem;">Ni objav. Naložite prve fotografije ali videe!</div>';
