@@ -9,6 +9,44 @@ require_once __DIR__ . '/Media.php';
 
 use App\Database;
 
+// Debugging Setup
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
+global $debug_log;
+$debug_log = [];
+
+set_error_handler(function ($severity, $message, $file, $line) {
+    global $debug_log;
+    $debug_log[] = [
+        'type' => 'Error',
+        'message' => $message,
+        'file' => $file,
+        'line' => $line
+    ];
+    // Return false to let normal error handling continue (printing to screen if display_errors is on)
+    return false;
+});
+
+set_exception_handler(function ($e) {
+    global $debug_log;
+    $debug_log[] = [
+        'type' => 'Exception',
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ];
+    error_log("Unhandled Exception: " . $e->getMessage());
+    if (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json')) {
+        \App\Response::error('Internal Server Error', 'EXCEPTION', 500);
+    }
+    // We want to show the debug bar even on exception if possible, but PHP might stop.
+    // However, since we are in output buffering or just rendering, we might be able to print it.
+    // For now, let's just dump it if possible or rely on the visible output.
+    echo "<div style='background:red;color:white;padding:10px;border:1px solid darkred;'>CRITICAL EXCEPTION: " . htmlspecialchars($e->getMessage()) . "</div>";
+});
+
 session_start();
 
 // Request ID for tracing
@@ -16,21 +54,9 @@ if (!isset($_SERVER['REQUEST_ID'])) {
     $_SERVER['REQUEST_ID'] = uniqid('req_', true);
 }
 
-// Global Exception Handler
-set_exception_handler(function ($e) {
-    error_log("Unhandled Exception: " . $e->getMessage());
-    if (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json')) {
-        \App\Response::error('Internal Server Error', 'EXCEPTION', 500);
-    }
-    http_response_code(500);
-    echo "Internal Server Error";
-    exit;
-});
-
 $pdo = Database::connect();
 
 // Ensure DB Schema (Simplified migration check)
-// In a real app, use a migration tool. Here we ensure tables exist.
 $pdo->exec(
     'CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,10 +68,6 @@ $pdo->exec(
         created_at INTEGER NOT NULL
     )'
 );
-// ... (Include other tables or rely on existing ones being correct from previous step,
-// strictly speaking I should verify them here but I will skip repeating the full SQL block
-// to save context tokens unless I need to modify schema).
-// I will rely on the fact I already verified the schema in Phase 1.
 
 // Helper functions for backward compatibility/ease of use in legacy files
 function app_pdo(): PDO {

@@ -1,91 +1,92 @@
 <?php
-require __DIR__ . '/../../includes/bootstrap.php';
-require __DIR__ . '/../../includes/auth.php';
+require __DIR__ . '/../../app/Bootstrap.php';
 
+use App\Auth;
+use App\Response;
+use App\Database;
+use App\Audit;
+
+// Ensure JSON
 header('Content-Type: application/json');
 
-$admin = current_user($pdo);
-if (!$admin || $admin['role'] !== 'admin') {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'message' => 'Unauthorized']);
-    exit;
+// Check Auth
+$user = Auth::requireAdmin();
+
+// Only POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    Response::error('Method not allowed', 'METHOD_NOT_ALLOWED', 405);
 }
 
+// Parse Input
 $input = json_decode(file_get_contents('php://input'), true);
+if (!$input) {
+    // Fallback if form data is used instead of JSON body
+    $input = $_POST;
+}
+
+// CSRF Check
+// The frontend (admin.js) sends csrf_token in body
+$token = $input['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+    Response::error('Invalid CSRF Token', 'CSRF_ERROR', 403);
+}
+
 $action = $input['action'] ?? '';
+$pdo = Database::connect();
 
 if ($action === 'add') {
-    $username = trim($input['username'] ?? '');
-    $password = $input['password'] ?? '';
-    $role = $input['role'] === 'admin' ? 'admin' : 'user';
-    $active = !empty($input['active']) ? 1 : 0;
+    $u = trim($input['username'] ?? '');
+    $p = $input['password'] ?? '';
+    $r = $input['role'] ?? 'user';
+    $a = !empty($input['active']) ? 1 : 0;
 
-    if (strlen($username) < 3 || strlen($username) > 32 || !preg_match('/^[a-zA-Z0-9._-]+$/', $username)) {
-        echo json_encode(['ok' => false, 'message' => 'Invalid username (3-32 chars, alphanumeric, ., _, -)']);
-        exit;
+    if (strlen($u) < 3 || strlen($p) < 8) {
+        Response::error('Uporabniško ime (min 3) ali geslo (min 8) je prekratko.');
     }
 
-    // Check uniqueness
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM users WHERE username = :u');
-    $stmt->execute([':u' => $username]);
-    if ($stmt->fetchColumn() > 0) {
-        echo json_encode(['ok' => false, 'message' => 'Uporabniško ime že obstaja']);
-        exit;
+    // Check exist
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE username = ?');
+    $stmt->execute([$u]);
+    if ($stmt->fetch()) {
+        Response::error('Uporabnik že obstaja.');
     }
 
-    if (strlen($password) < 8) {
-        echo json_encode(['ok' => false, 'message' => 'Geslo mora imeti vsaj 8 znakov']);
-        exit;
-    }
+    $h = password_hash($p, PASSWORD_DEFAULT);
+    $stmt = $pdo->prepare('INSERT INTO users (username, pass_hash, role, active, created_at) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$u, $h, $r, $a, time()]);
 
-    try {
-        $stmt = $pdo->prepare('INSERT INTO users (username, pass_hash, role, active, created_at, email) VALUES (:u, :p, :r, :a, :c, NULL)');
-        $stmt->execute([
-            ':u' => $username,
-            ':p' => password_hash($password, PASSWORD_DEFAULT),
-            ':r' => $role,
-            ':a' => $active,
-            ':c' => time()
-        ]);
-        echo json_encode(['ok' => true, 'message' => 'Uporabnik uspešno dodan']);
-    } catch (Exception $e) {
-        echo json_encode(['ok' => false, 'message' => 'DB Error: ' . $e->getMessage()]);
-    }
-    exit;
-}
+    Audit::log($pdo, $user['id'], 'user_add', "Added user $u");
+    Response::json(['message' => 'Uporabnik dodan.']);
 
-if ($action === 'toggle') {
+} elseif ($action === 'toggle') {
     $id = (int)($input['id'] ?? 0);
-    if ($id <= 0) exit_json('Invalid ID');
-    if ($id === (int)$admin['id']) exit_json('Ne morete blokirati samega sebe');
+    if (!$id) Response::error('Manjka ID');
 
-    $stmt = $pdo->prepare('UPDATE users SET active = NOT active WHERE id = :id');
-    $stmt->execute([':id' => $id]);
+    // Get current
+    $stmt = $pdo->prepare('SELECT active FROM users WHERE id = ?');
+    $stmt->execute([$id]);
+    $curr = $stmt->fetchColumn();
 
-    // Get new status
-    $stmt = $pdo->prepare('SELECT active FROM users WHERE id = :id');
-    $stmt->execute([':id' => $id]);
-    $newStatus = (bool)$stmt->fetchColumn();
+    $newState = $curr ? 0 : 1;
+    $stmt = $pdo->prepare('UPDATE users SET active = ? WHERE id = ?');
+    $stmt->execute([$newState, $id]);
 
-    echo json_encode(['ok' => true, 'active' => $newStatus, 'message' => $newStatus ? 'Uporabnik aktiviran' : 'Uporabnik blokiran']);
-    exit;
-}
+    Audit::log($pdo, $user['id'], 'user_toggle', "Toggled user $id to $newState");
+    Response::json(['message' => 'Status spremenjen.', 'active' => (bool)$newState]);
 
-if ($action === 'reset') {
+} elseif ($action === 'reset') {
     $id = (int)($input['id'] ?? 0);
-    if ($id <= 0) exit_json('Invalid ID');
+    if (!$id) Response::error('Manjka ID');
 
-    $newPass = bin2hex(random_bytes(4)); // Generate random 8 char pass
-    $hash = password_hash($newPass, PASSWORD_DEFAULT);
+    $newPass = bin2hex(random_bytes(4)); // 8 chars
+    $h = password_hash($newPass, PASSWORD_DEFAULT);
 
-    $stmt = $pdo->prepare('UPDATE users SET pass_hash = :h WHERE id = :id');
-    $stmt->execute([':h' => $hash, ':id' => $id]);
+    $stmt = $pdo->prepare('UPDATE users SET pass_hash = ? WHERE id = ?');
+    $stmt->execute([$h, $id]);
 
-    echo json_encode(['ok' => true, 'message' => 'Geslo ponastavljeno: ' . $newPass]);
-    exit;
-}
+    Audit::log($pdo, $user['id'], 'user_reset', "Reset password for user $id");
+    Response::json(['message' => "Geslo ponastavljeno. Novo geslo: $newPass"]);
 
-function exit_json($msg) {
-    echo json_encode(['ok' => false, 'message' => $msg]);
-    exit;
+} else {
+    Response::error('Neznana akcija');
 }

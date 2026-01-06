@@ -1,10 +1,12 @@
 <?php
-require __DIR__ . '/../includes/bootstrap.php';
-require __DIR__ . '/../includes/auth.php';
-require __DIR__ . '/../includes/csrf.php';
-require __DIR__ . '/../includes/layout.php';
+require __DIR__ . '/../app/Bootstrap.php';
 
-$admin = require_admin($pdo);
+use App\Auth;
+use App\Database;
+
+$admin = Auth::requireAdmin();
+$pdo = Database::connect();
+
 $type = $_GET['type'] ?? '';
 $author = trim($_GET['author'] ?? '');
 
@@ -29,53 +31,56 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $posts = $stmt->fetchAll();
 
+require __DIR__ . '/../includes/layout.php';
 render_header('Upravljanje objav', $admin, 'admin');
-render_flash($flash ?? null);
+render_flash($_SESSION['flash'] ?? null); unset($_SESSION['flash']);
 ?>
-<div class="admin-page">
+<div class="admin-page" style="padding: 2rem;">
     <h1>Objave</h1>
-    <form class="filters card" method="get" style="display: flex; gap: 10px; padding: 1rem; margin-bottom: 20px;">
-        <select name="type" style="padding: 10px;">
-            <option value="">Vsi tipi</option>
-            <option value="image" <?php echo $type === 'image' ? 'selected' : ''; ?>>Slike</option>
-            <option value="video" <?php echo $type === 'video' ? 'selected' : ''; ?>>Video</option>
-        </select>
-        <input type="text" name="author" placeholder="Avtor" value="<?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?>" style="padding: 10px;">
-        <button class="button" type="submit">Filter</button>
-        <a href="/admin/posts.php" class="button ghost">Počisti</a>
-    </form>
+    <div class="card form" style="margin-bottom: 2rem; min-width: auto;">
+        <form class="filters" method="get" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <select name="type">
+                <option value="">Vsi tipi</option>
+                <option value="image" <?php echo $type === 'image' ? 'selected' : ''; ?>>Slike</option>
+                <option value="video" <?php echo $type === 'video' ? 'selected' : ''; ?>>Video</option>
+            </select>
+            <input type="text" name="author" placeholder="Avtor" value="<?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?>">
+            <button class="button" type="submit">Filter</button>
+            <a href="/admin/posts.php" class="button ghost">Počisti</a>
+        </form>
+    </div>
 
-    <div style="overflow-x: auto;">
+    <div class="glass-card" style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
-                <tr style="background: var(--card); text-align: left;">
-                    <th style="padding: 10px;">Media</th>
-                    <th style="padding: 10px;">Podatki</th>
-                    <th style="padding: 10px;">Statistika</th>
-                    <th style="padding: 10px;">Akcije</th>
+                <tr style="border-bottom: 1px solid var(--border); text-align: left;">
+                    <th style="padding: 1rem;">Media</th>
+                    <th style="padding: 1rem;">Podatki</th>
+                    <th style="padding: 1rem;">Statistika</th>
+                    <th style="padding: 1rem;">Akcije</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($posts as $post) : ?>
                 <tr style="border-bottom: 1px solid var(--border);" data-id="<?php echo $post['id']; ?>">
-                    <td style="padding: 10px; width: 100px;">
-                        <img class="thumb" src="/<?php echo htmlspecialchars($post['thumb_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="thumb" style="width: 80px; height: 60px; object-fit: cover; border-radius: 4px;">
+                    <td style="padding: 1rem; width: 120px;">
+                        <img class="thumb" src="/<?php echo htmlspecialchars($post['thumb_path'] ?: $post['file_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="thumb" style="width: 100px; height: 75px; object-fit: cover; border-radius: 0.5rem;" loading="lazy">
                     </td>
-                    <td style="padding: 10px;">
-                        <div><strong><?php echo $post['id'] . ' ' . ($post['type'] === 'video' ? 'video' : 'slika'); ?></strong></div>
+                    <td style="padding: 1rem;">
+                        <div style="font-weight: bold; margin-bottom: 0.25rem;"><?php echo $post['id'] . ' ' . ($post['type'] === 'video' ? 'video' : 'slika'); ?></div>
                         <div style="color: var(--muted); font-size: 0.9em;">
                             Avtor: <?php echo htmlspecialchars($post['username'] ?? 'Anon', ENT_QUOTES, 'UTF-8'); ?><br>
                             Datum: <?php echo date('d.m.Y H:i', (int)$post['created_at']); ?><br>
                             Velikost: <?php echo round($post['size_bytes'] / 1024 / 1024, 2); ?> MB
                         </div>
                     </td>
-                    <td style="padding: 10px;">
+                    <td style="padding: 1rem;">
                         Views: <?php echo (int)$post['views']; ?>
                     </td>
-                    <td style="padding: 10px;">
-                        <div style="display: flex; gap: 5px;">
-                            <a href="/<?php echo htmlspecialchars($post['file_path']); ?>" target="_blank" class="button small ghost">View</a>
-                            <button class="button danger small" onclick="deleteItem('post', <?php echo $post['id']; ?>, this)">Delete</button>
+                    <td style="padding: 1rem;">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <a href="/view.php?id=<?php echo $post['id']; ?>" target="_blank" class="button small ghost">Ogled</a>
+                            <button class="button danger small" onclick="deleteItem('post', <?php echo $post['id']; ?>, this)">Izbriši</button>
                         </div>
                     </td>
                 </tr>
