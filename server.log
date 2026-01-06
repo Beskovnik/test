@@ -122,3 +122,27 @@
 [Tue Jan  6 00:58:51 2026] [::1]:34018 Closing
 [Tue Jan  6 00:58:51 2026] [::1]:34026 Closing
 [Tue Jan  6 00:58:51 2026] [::1]:34036 Closing
+[Tue Jan  6 01:22:13 2026] [::1]:55468 Accepted
+[Tue Jan  6 01:22:13 2026] [::1]:55468 [200]: GET /index.php
+[Tue Jan  6 01:22:13 2026] [::1]:55468 Closing
+[Tue Jan  6 01:22:13 2026] [::1]:55482 Accepted
+[Tue Jan  6 01:22:13 2026] [::1]:55484 Accepted
+[Tue Jan  6 01:22:13 2026] [::1]:55482 [200]: GET /assets/css/app.css
+[Tue Jan  6 01:22:13 2026] [::1]:55484 [200]: GET /assets/js/app.js
+[Tue Jan  6 01:22:13 2026] [::1]:55482 Closing
+[Tue Jan  6 01:22:13 2026] [::1]:55484 Closing
+[Tue Jan  6 01:22:13 2026] [::1]:55486 Accepted
+[Tue Jan  6 01:22:13 2026] [::1]:55486 [200]: GET /uploads/test_images/test.svg
+[Tue Jan  6 01:22:13 2026] [::1]:55486 Closing
+[Tue Jan  6 01:22:43 2026] [::1]:60200 Accepted
+[Tue Jan  6 01:22:43 2026] [::1]:60200 [200]: GET /index.php
+[Tue Jan  6 01:22:43 2026] [::1]:60200 Closing
+[Tue Jan  6 01:22:43 2026] [::1]:60210 Accepted
+[Tue Jan  6 01:22:43 2026] [::1]:60224 Accepted
+[Tue Jan  6 01:22:43 2026] [::1]:60210 [200]: GET /assets/css/app.css
+[Tue Jan  6 01:22:43 2026] [::1]:60224 [200]: GET /assets/js/app.js
+[Tue Jan  6 01:22:43 2026] [::1]:60210 Closing
+[Tue Jan  6 01:22:43 2026] [::1]:60224 Closing
+[Tue Jan  6 01:22:43 2026] [::1]:60236 Accepted
+[Tue Jan  6 01:22:43 2026] [::1]:60236 [200]: GET /uploads/test_images/test.svg
+[Tue Jan  6 01:22:43 2026] [::1]:60236 Closing
