@@ -245,8 +245,16 @@ function processFile($sourcePath, $originalName, $mimeType, $fileSize, $user) {
             $dbPreview = 'uploads/preview/' . $random . '.jpg';
             $targetPreview = $uploadDir . '/preview/' . $random . '.jpg';
 
-            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+            // Try to generate preview (high res, smart scaling)
             $previewSuccess = Media::generateVideoThumb($targetOriginal, $targetPreview, 1600);
+
+            if ($previewSuccess) {
+                // If preview generated, use it to make the thumbnail (faster than running ffmpeg again)
+                $thumbSuccess = Media::generateResized($targetPreview, $targetThumb, 480, 480);
+            } else {
+                // Fallback: try generating thumb from original
+                $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+            }
         }
     } catch (Exception $e) {
         // Log media generation error but don't fail upload
