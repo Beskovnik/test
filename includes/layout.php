@@ -88,6 +88,7 @@ function render_footer(): void
 {
     echo '</main></div>';
     echo '<script src="/assets/js/app.js"></script>';
+    echo '<script src="/assets/js/infinite_scroll.js"></script>';
     echo '</body></html>';
 }
 

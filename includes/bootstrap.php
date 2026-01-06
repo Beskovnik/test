@@ -63,22 +63,29 @@ $pdo->exec(
         height INTEGER NULL,
         duration_sec INTEGER NULL,
         thumb_path TEXT NOT NULL,
+        preview_path TEXT NULL,
         views INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
     )'
 );
 
-// Add views column if missing (migration)
+// Add views/preview_path column if missing (migration)
 $columns = $pdo->query("PRAGMA table_info(posts)")->fetchAll();
 $hasViews = false;
+$hasPreview = false;
 foreach ($columns as $col) {
     if ($col['name'] === 'views') {
         $hasViews = true;
-        break;
+    }
+    if ($col['name'] === 'preview_path') {
+        $hasPreview = true;
     }
 }
 if (!$hasViews) {
     $pdo->exec('ALTER TABLE posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0');
+}
+if (!$hasPreview) {
+    $pdo->exec('ALTER TABLE posts ADD COLUMN preview_path TEXT NULL');
 }
 $pdo->exec(
     'CREATE TABLE IF NOT EXISTS likes (
