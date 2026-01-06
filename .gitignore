@@ -1,3 +1,5 @@
 _data/database.sqlite
 uploads/
 thumbs/
+_data/sessions/
+_data/*.log

@@ -1,150 +1,58 @@
 (function () {
-    // Toast Utility
-    const showToast = window.showToast || ((type, msg) => {
+    // --- 1. Utilities ---
+
+    // CSRF Token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Toast Notification
+    window.showToast = function(message, type = 'success') {
         let toastContainer = document.getElementById('toast-container');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;';
+            toastContainer.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;';
             document.body.appendChild(toastContainer);
         }
 
         const el = document.createElement('div');
-        // Re-use existing toast styles from CSS if possible, but structure manually to be safe
-        el.className = `toast show`; // CSS handles animation
-        // We manually inject styles to match the 'toast-body' structure in layout.php or just use simple style
-        // Let's use the structure from layout.php for consistency
         const isError = type === 'error';
-        const color = isError ? 'var(--danger)' : 'var(--success)';
+        const borderColor = isError ? 'var(--danger, #e74c3c)' : 'var(--success, #2ecc71)';
 
-        el.innerHTML = `
-            <div class="toast-body ${isError ? 'error-toast' : 'success-toast'}" style="padding: 1rem 1.5rem; border-radius: 1rem; background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--border); color: #fff; display:flex; align-items:center; gap:0.75rem; border-left: 4px solid ${color};">
-                <span style="font-weight:600;">${msg}</span>
-            </div>
+        el.className = 'toast';
+        el.style.cssText = `
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            background: var(--panel, #2a2a2a);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border, #444);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-left: 4px solid ${borderColor};
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
         `;
 
+        el.innerHTML = `<span style="font-weight:600;">${message}</span>`;
         toastContainer.appendChild(el);
+
+        // Animate In
+        requestAnimationFrame(() => {
+            el.style.opacity = '1';
+            el.style.transform = 'translateY(0)';
+        });
+
+        // Remove after 3s
         setTimeout(() => {
             el.style.opacity = '0';
+            el.style.transform = 'translateY(-10px)';
             setTimeout(() => el.remove(), 300);
         }, 3000);
-    });
-    window.showToast = showToast;
-
-    // Theme Management
-    const themeToggle = document.getElementById('theme-toggle');
-    const html = document.documentElement;
-    const storedTheme = localStorage.getItem('theme');
-
-    if (storedTheme) {
-        html.setAttribute('data-theme', storedTheme);
-        updateThemeIcon(storedTheme);
-    }
-
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        });
-    }
-
-    function updateThemeIcon(theme) {
-        if (themeToggle) {
-            themeToggle.textContent = theme === 'light' ? '☀️' : '🌙';
-        }
-    }
-
-    // UI Auto Scale
-    function updateUIScale() {
-        const width = window.innerWidth;
-        let scale = 1.0;
-
-        if (width < 420) {
-            scale = 0.92;
-        } else if (width < 768) {
-            scale = 0.96;
-        } else if (width < 1200) {
-            scale = 1.0;
-        } else if (width < 1600) {
-            scale = 1.02;
-        } else {
-            scale = 1.04;
-        }
-
-        document.documentElement.style.setProperty('--ui-auto-scale', scale);
-    }
-
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(updateUIScale, 150);
-    });
-    updateUIScale(); // Init
-
-    // Mobile Menu
-    const menuToggle = document.querySelector('.mobile-menu-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.mobile-overlay');
-
-    if (menuToggle && sidebar && overlay) {
-        function toggleMenu() {
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-        }
-
-        menuToggle.addEventListener('click', toggleMenu);
-        overlay.addEventListener('click', toggleMenu);
-    }
-
-    // CSRF & Request Helper
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-    // Global Toast Function
-    window.showToast = function(message, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-
-        // Trigger animation
-        requestAnimationFrame(() => toast.classList.add('show'));
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
     };
-
-    // View Page Logic
-    const viewPage = document.querySelector('.view-page');
-    if (viewPage) {
-        initViewPage();
-    }
-
-    function initViewPage() {
-        const commentsSection = document.getElementById('commentsSection');
-        if (!commentsSection) return;
-    function request(url, options = {}) {
-        const headers = options.headers || {};
-        const method = options.method ? options.method.toUpperCase() : 'GET';
-
-        if (method === 'POST') {
-            headers['X-Requested-With'] = 'XMLHttpRequest';
-
-            if (options.body && !(options.body instanceof FormData) && typeof options.body === 'object') {
-                headers['Content-Type'] = 'application/json';
-                options.body = JSON.stringify(options.body);
-            } else if (options.body instanceof FormData) {
-                // Let browser set Content-Type
-            } else if (!headers['Content-Type']) {
-                headers['Content-Type'] = 'application/x-www-form-urlencoded';
-            }
-        }
-        return fetch(url, { ...options, headers });
-    }
 
     // Date Formatter
     function formatDate(isoString) {
@@ -152,7 +60,6 @@
         try {
             const date = new Date(isoString);
             if (isNaN(date.getTime())) return '—';
-
             return new Intl.DateTimeFormat('sl-SI', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
@@ -162,259 +69,112 @@
         }
     }
 
-    // View Page Logic (Static)
-    const commentsSection = document.querySelector('.comments');
-    const likeBtn = document.querySelector('.button.like');
-    const deleteBtn = document.getElementById('deleteBtn');
-    const shareBtn = document.getElementById('shareBtn');
+    // --- 2. Global UI Logic ---
+
+    // Theme Toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        const html = document.documentElement;
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.textContent = newTheme === 'light' ? '☀️' : '🌙';
+        });
+        // Init icon
+        const stored = localStorage.getItem('theme');
+        if (stored) themeToggle.textContent = stored === 'light' ? '☀️' : '🌙';
+    }
+
+    // UI Auto Scale
+    function updateUIScale() {
+        const width = window.innerWidth;
+        let scale = 1.0;
+        if (width < 420) scale = 0.92;
+        else if (width < 768) scale = 0.96;
+        else if (width < 1200) scale = 1.0;
+        else if (width < 1600) scale = 1.02;
+        else scale = 1.04;
+        document.documentElement.style.setProperty('--ui-auto-scale', scale);
+    }
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(updateUIScale, 150);
+    });
+    updateUIScale();
+
+    // Mobile Menu
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    if (menuToggle && sidebar && overlay) {
+        function toggleMenu() {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+        menuToggle.addEventListener('click', toggleMenu);
+        overlay.addEventListener('click', toggleMenu);
+    }
+
+    // --- 3. View Page Logic ---
+
+    function initViewPage() {
+        // Elements
+        const commentsSection = document.getElementById('commentsSection');
+        if (!commentsSection) return; // Not on view page
 
         const postId = commentsSection.dataset.id;
+        const likeBtn = document.getElementById('likeBtn');
+        const visibilitySelect = document.getElementById('visibilitySelect');
         const commentList = document.getElementById('commentList');
         const commentForm = document.getElementById('commentForm');
-        const likeBtn = document.getElementById('likeBtn');
-        const viewCount = document.getElementById('viewCount');
-        const shareBtn = document.getElementById('shareBtn');
-        const deleteBtn = document.getElementById('deleteBtn');
-
-        // Increment View
-        incrementViewCount(postId);
-
-        // Share
-        if (shareBtn) {
-            shareBtn.addEventListener('click', () => sharePost(shareBtn.dataset.url));
-        }
-
-        // Delete
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', () => deletePost(deleteBtn.dataset.id));
-        }
-
-        // Like
-        if (likeBtn) {
-            likeBtn.addEventListener('click', () => toggleLike(likeBtn, postId));
-        }
-
-        // Image Preview Click
+        const viewCountEl = document.getElementById('viewCount');
         const previewImage = document.querySelector('.media-panel .preview-image');
-        if (previewImage) {
-            previewImage.addEventListener('click', function() {
-                if (this.dataset.original) {
-                    this.src = this.dataset.original;
-                    this.classList.remove('preview-image');
-                }
-            });
-        }
 
-        // Comments
-        loadComments(postId, commentList);
-        if (commentForm) {
-            commentForm.addEventListener('submit', (e) => submitComment(e, postId, commentList, commentForm));
-        }
-
-        async function incrementViewCount(id) {
+        // 3.1 View Count
+        (async () => {
             try {
                 const res = await fetch('/api/view.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({post_id: id, csrf_token: csrfToken})
+                    body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
                 });
                 const data = await res.json();
-                if (data.ok && data.views && viewCount) {
-                    viewCount.textContent = '👁️ ' + data.views;
-                }
-            } catch (e) {
-                console.error('View increment failed', e);
-            }
-        }
-
-        async function sharePost(url) {
-            const fullUrl = window.location.origin + url;
-            try {
-                await navigator.clipboard.writeText(fullUrl);
-                showToast('Povezava kopirana!', 'success');
-            } catch (err) {
-                prompt('Kopiraj povezavo:', fullUrl);
-            }
-        }
-
-        async function deletePost(id) {
-            if (!confirm('Res želiš izbrisati to objavo?')) return;
-            try {
-                const res = await fetch('/api/post_delete.php', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({id, csrf_token: csrfToken})
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    window.location.href = '/index.php';
-                } else {
-                    showToast(data.error || 'Napaka pri brisanju', 'error');
-                }
-            } catch (e) {
-                showToast('Napaka omrežja', 'error');
-            }
-        }
-
-        async function toggleLike(btn, id) {
-            try {
-                const res = await fetch('/api/like.php', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({post_id: id, csrf_token: csrfToken})
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    btn.classList.toggle('active', data.liked);
-                    btn.querySelector('.like-icon').textContent = data.liked ? '❤️' : '🤍';
-                    btn.querySelector('.like-label').textContent = data.liked ? 'Všečkano' : 'Všečkaj';
-                    btn.querySelector('.like-count').textContent = data.count;
-                } else if (data.error === 'CSRF Error') {
-                   showToast('Napaka seje. Osveži stran.', 'error');
-                } else {
-                   showToast(data.error || 'Napaka', 'error');
+                if (data.ok && data.views && viewCountEl) {
+                    viewCountEl.innerHTML = `<span class="material-icons" style="font-size:1rem;">visibility</span> ${data.views}`;
                 }
             } catch (e) { console.error(e); }
-        }
+        })();
 
-        async function loadComments(id, list) {
-            try {
-                const res = await fetch(`/api/comment_list.php?post_id=${id}`);
-                const data = await res.json();
-                if (data.ok) {
-                    list.innerHTML = '';
-                    if (data.comments && data.comments.length) {
-                        data.comments.forEach(c => {
-                            const div = document.createElement('div');
-                            div.className = 'comment';
-
-                            const strong = document.createElement('strong');
-                            strong.textContent = c.author;
-                            div.appendChild(strong);
-
-                            const p = document.createElement('p');
-                            p.textContent = c.body;
-                            div.appendChild(p);
-
-                            const small = document.createElement('small');
-                            small.textContent = new Date(c.created_at * 1000).toLocaleString();
-                            div.appendChild(small);
-
-                            list.appendChild(div);
-                        });
-                    } else {
-                        list.innerHTML = '<p class="muted">Ni komentarjev.</p>';
-                    }
-                }
-            } catch(e) {
-                list.innerHTML = '<p class="error">Napaka pri nalaganju.</p>';
-            }
-        }
-        // Submit Comment
-        if (commentForm) {
-            commentForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
+        // 3.2 Like Button
+        if (likeBtn) {
+            likeBtn.addEventListener('click', async () => {
                 if (!csrfToken) {
-                    showToast('error', 'Niste prijavljeni.');
+                    showToast('Za všečkanje se morate prijaviti.', 'error');
                     return;
                 }
-
-                const bodyInput = commentForm.querySelector('textarea');
-                const body = bodyInput.value;
-
-                const payload = {
-                    post_id: postId,
-                    body: body,
-                    csrf_token: csrfToken
-                };
-    // CSRF Helper
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = csrfMeta ? csrfMeta.content : '';
-
-    // Toast Notification Helper
-    window.showToast = window.showToast || ((type, msg) => {
-        console.log(`[${type}] ${msg}`);
-        let toast = document.getElementById('toast-container');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'toast-container';
-            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;';
-            document.body.appendChild(toast);
-        }
-        const el = document.createElement('div');
-        el.className = `toast toast-${type}`;
-        el.style.cssText = 'background:rgba(0,0,0,0.8);color:#fff;padding:10px;margin-top:5px;border-radius:4px;';
-        el.textContent = msg;
-        toast.appendChild(el);
-        setTimeout(() => el.remove(), 3000);
-    });
-
-    // Share Modal Logic
-    window.openShareModal = async function(mediaIds) {
-        if (!mediaIds || mediaIds.length === 0) return;
-
-        const title = prompt("Ime deljene zbirke (opcijsko):", "Album " + new Date().toLocaleDateString());
-        if (title === null) return; // cancelled
-
-        try {
-            const res = await fetch('/api/share/create.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    title: title,
-                    media_ids: mediaIds
-                })
+                try {
+                    const res = await fetch('/api/like.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        likeBtn.classList.toggle('active', data.liked);
+                        likeBtn.querySelector('.like-icon').textContent = data.liked ? '❤️' : '🤍';
+                        likeBtn.querySelector('.like-label').textContent = data.liked ? 'Všečkano' : 'Všečkaj';
+                        likeBtn.querySelector('.like-count').textContent = data.count;
+                    } else {
+                        showToast(data.error || 'Napaka', 'error');
+                    }
+                } catch (e) { showToast('Napaka omrežja', 'error'); }
             });
-            const data = await res.json();
-
-            if (data.success) {
-                const link = window.location.origin + data.share_url;
-                // Show modal with link
-                let m = document.createElement('div');
-                m.className = 'modal open';
-                m.style.zIndex = '10000';
-                m.innerHTML = `
-                    <div class="card" style="padding:2rem; max-width:500px; margin:auto; position:relative; top:20%;">
-                        <h3 style="margin-top:0">Povezava ustvarjena!</h3>
-                        <input type="text" value="${link}" readonly style="width:100%; padding:0.5rem; margin:1rem 0; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white;">
-                        <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
-                            <button class="button" onclick="navigator.clipboard.writeText('${link}'); this.innerText='Kopirano!';">Kopiraj</button>
-                            <button class="button ghost" onclick="this.closest('.modal').remove()">Zapri</button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(m);
-            } else {
-                window.showToast('error', data.error);
-            }
-        } catch (e) {
-            window.showToast('error', 'Napaka pri ustvarjanju delitve');
-            console.error(e);
         }
-    };
 
-    // View Page Logic
-    document.addEventListener('DOMContentLoaded', () => {
-        // Elements
-        const commentsSection = document.getElementById('commentsSection');
-        const likeBtn = document.getElementById('likeBtn');
-        const deleteBtn = document.getElementById('deleteBtn');
-        const shareBtn = document.getElementById('shareBtn');
-        const commentList = document.getElementById('commentList');
-        const commentForm = document.getElementById('commentForm');
-        const viewCountEl = document.getElementById('viewCount');
-
-        // Determine Post ID
-        let postId = null;
-        if (commentsSection) postId = commentsSection.dataset.id;
-        else if (likeBtn) postId = likeBtn.dataset.id;
-        else if (deleteBtn) postId = deleteBtn.dataset.id;
-
-        // Exit if not on view page (no postId found)
-        if (!postId) return;
-
-        // Visibility Toggle Logic
-        const visibilitySelect = document.getElementById('visibilitySelect');
+        // 3.3 Visibility Toggle
         if (visibilitySelect) {
             visibilitySelect.addEventListener('change', async function() {
                 const newVal = this.value;
@@ -428,115 +188,79 @@
                             csrf_token: csrfToken
                         })
                     });
+                    // Some endpoints return {success:true} others {ok:true}. Check both.
                     const data = await res.json();
-                    if(data.success) {
-                        window.showToast('success', 'Vidnost posodobljena');
+                    if(data.success || data.ok) {
+                        showToast('Vidnost posodobljena');
                     } else {
-                        window.showToast('error', data.error);
-                        // Revert?
+                        showToast(data.error || 'Napaka', 'error');
                     }
                 } catch(e) {
-                    window.showToast('error', 'Napaka pri shranjevanju');
+                    showToast('Napaka pri shranjevanju', 'error');
                 }
             });
         }
 
-        // Async View Increment
-        (async () => {
-            try {
-                const res = await fetch('/api/view.php', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
-                });
-                const data = await res.json();
-                if (data.ok && data.views && viewCountEl) {
-                    viewCountEl.textContent = '👁️ ' + data.views;
-                }
-            } catch (e) {
-                console.error('View increment failed', e);
-            }
-        })();
-
-        // Share Button
-        if (shareBtn) {
-            shareBtn.addEventListener('click', async () => {
-                const url = shareBtn.dataset.url;
+        // 3.4 Share Buttons (Delegate)
+        const shareBtns = document.querySelectorAll('.js-share-btn');
+        shareBtns.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const url = btn.dataset.url; // Relative URL
+                if (!url) return;
                 const fullUrl = window.location.origin + url;
                 try {
                     await navigator.clipboard.writeText(fullUrl);
-                    window.showToast('success', 'Povezava kopirana!');
+                    showToast('Povezava kopirana!');
                 } catch (err) {
                     prompt('Kopiraj povezavo:', fullUrl);
                 }
             });
-        }
+        });
 
-        // Delete Button
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', async () => {
+        // 3.5 Delete Buttons (Delegate)
+        const deleteBtns = document.querySelectorAll('.js-delete-btn');
+        deleteBtns.forEach(btn => {
+            btn.addEventListener('click', async () => {
                 if (!confirm('Res želiš izbrisati to objavo?')) return;
+                const id = btn.dataset.id;
                 try {
-                    const res = await request('/api/comment_add.php', { method: 'POST', body: payload });
-                    const json = await res.json();
-
-                    if (res.ok && json.ok) {
-                        bodyInput.value = '';
-                        loadComments(postId);
-                        showToast('success', 'Komentar objavljen.');
-                    } else {
-                        showToast('error', json.error || 'Napaka pri objavi.');
-                    }
-                } catch(e) { console.error(e); showToast('error', 'Napaka omrežja.'); }
                     const res = await fetch('/api/post_delete.php', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({id: postId, csrf_token: csrfToken})
+                        body: JSON.stringify({id: id, csrf_token: csrfToken})
                     });
                     const data = await res.json();
                     if (data.ok) {
                         window.location.href = '/index.php';
                     } else {
-                        window.showToast('error', data.error || 'Napaka pri brisanju');
+                        showToast(data.error || 'Napaka pri brisanju', 'error');
                     }
                 } catch (e) {
-                    window.showToast('error', 'Napaka omrežja');
+                    showToast('Napaka omrežja', 'error');
+                }
+            });
+        });
+
+        // 3.6 Image Preview Click
+        if (previewImage) {
+            previewImage.addEventListener('click', function() {
+                if (this.dataset.original) {
+                    this.src = this.dataset.original;
+                    this.classList.remove('preview-image');
+                    // Optional: remove onclick to prevent reload or toggle back?
+                    // For now, keep as is (load full res).
                 }
             });
         }
 
-        // Like Button
-        if (likeBtn) {
-            likeBtn.addEventListener('click', async () => {
-                try {
-                    const res = await fetch('/api/like.php', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
-                    });
-                    const data = await res.json();
-                    if (data.ok) {
-                        likeBtn.classList.toggle('active', data.liked);
-                        const icon = likeBtn.querySelector('.like-icon');
-                        const label = likeBtn.querySelector('.like-label');
-                        const count = likeBtn.querySelector('.like-count');
-
-                        if(icon) icon.textContent = data.liked ? '❤️' : '🤍';
-                        if(label) label.textContent = data.liked ? 'Všečkano' : 'Všečkaj';
-                        if(count) count.textContent = data.count;
-                    }
-                } catch (e) { console.error(e); }
-            });
-        }
-
-        // Comments Logic
+        // 3.7 Comments
         async function loadComments() {
             if (!commentList) return;
             try {
                 const res = await fetch(`/api/comment_list.php?post_id=${postId}`);
                 const data = await res.json();
                 commentList.innerHTML = '';
-                if (data.comments && data.comments.length) {
+                if (data.ok && data.comments && data.comments.length) {
                     data.comments.forEach(c => {
                         const div = document.createElement('div');
                         div.className = 'comment-item';
@@ -547,71 +271,31 @@
                                 <strong>${c.author}</strong>
                                 <span style="font-size:0.8em; color:var(--muted);">${dateStr}</span>
                             </div>
-                            <div style="word-break: break-word;">${c.body}</div>
+                            <div style="word-break: break-word; color: #ddd;">${c.body}</div>
                         `;
                         commentList.appendChild(div);
                     });
                 } else {
                     commentList.innerHTML = '<p class="no-comments" style="color:var(--muted);">Ni komentarjev.</p>';
-                if (data.ok) {
-                    commentList.innerHTML = data.comments.map(c => `
-                        <div class="comment">
-                            <strong>${c.author}</strong>
-                            <p>${c.body}</p>
-                            <small>${new Date(c.created_at * 1000).toLocaleString()}</small>
-                        </div>
-                    `).join('') || '<p class="muted">Ni komentarjev.</p>';
                 }
             } catch (e) {
                 console.error(e);
+                commentList.innerHTML = '<p class="error">Napaka pri nalaganju.</p>';
             }
         }
 
-    if (likeBtn) {
-        likeBtn.addEventListener('click', async () => {
-             if (!csrfToken) {
-                showToast('error', 'Za všečkanje se morate prijaviti.');
-                return;
-            }
-            const postId = likeBtn.dataset.id || likeBtn.dataset.postId;
-            const formData = new FormData();
-            formData.append('post_id', postId);
-            formData.append('csrf_token', csrfToken);
-
-        async function submitComment(e, id, list, form) {
-            e.preventDefault();
-            const body = form.body.value;
-            try {
-                const res = await fetch('/api/comment_add.php', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({post_id: id, body, csrf_token: csrfToken})
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    form.reset();
-                    loadComments(id, list);
-                } else {
-                    showToast(data.error || 'Napaka', 'error');
-                }
-            } catch(e) {
-                showToast('Napaka omrežja', 'error');
-            }
-        }
-                if (data.like_count !== undefined) {
-                    likeBtn.querySelector('.like-count').textContent = data.like_count;
-                    const label = likeBtn.querySelector('.like-label');
-                    if (label) label.textContent = data.liked ? 'Všečkano' : 'Všečkaj';
-                    likeBtn.classList.toggle('active', data.liked);
-                    // Also update icon if it exists
-                    const icon = likeBtn.querySelector('.like-icon');
-                    if (icon) icon.textContent = data.liked ? '❤️' : '🤍';
-        if (commentList) loadComments();
+        loadComments(); // Initial load
 
         if (commentForm) {
-            commentForm.addEventListener('submit', async function(e) {
+            commentForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const body = this.body.value;
+                if (!csrfToken) {
+                    showToast('Niste prijavljeni.', 'error');
+                    return;
+                }
+                const bodyInput = commentForm.querySelector('textarea');
+                const body = bodyInput.value;
+
                 try {
                     const res = await fetch('/api/comment_add.php', {
                         method: 'POST',
@@ -620,51 +304,20 @@
                     });
                     const data = await res.json();
                     if (data.ok) {
-                        this.reset();
+                        bodyInput.value = '';
                         loadComments();
+                        showToast('Komentar objavljen.');
                     } else {
-                        window.showToast('error', data.error);
+                        showToast(data.error || 'Napaka pri objavi.', 'error');
                     }
-                } catch (e) {
-                    window.showToast('error', 'Napaka pri objavi komentarja');
+                } catch(e) {
+                    showToast('Napaka omrežja.', 'error');
                 }
             });
         }
-    });
-
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', async () => {
-            if (!confirm('Res želiš izbrisati to objavo?')) return;
-            const postId = deleteBtn.dataset.id;
-            try {
-                const res = await fetch('/api/post_delete.php', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({id: postId, csrf_token: csrfToken})
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    window.location.href = '/index.php';
-                } else {
-                    showToast('error', data.error || 'Napaka pri brisanju');
-                }
-            } catch (e) {
-                showToast('error', 'Napaka omrežja');
-            }
-        });
     }
 
-    if (shareBtn) {
-        shareBtn.addEventListener('click', async () => {
-            const url = shareBtn.dataset.url;
-            const fullUrl = window.location.origin + url;
-            try {
-                await navigator.clipboard.writeText(fullUrl);
-                showToast('success', 'Povezava kopirana!');
-            } catch (err) {
-                prompt('Kopiraj povezavo:', fullUrl);
-            }
-        });
-    }
+    // Initialize View Page logic on load
+    document.addEventListener('DOMContentLoaded', initViewPage);
 
 })();

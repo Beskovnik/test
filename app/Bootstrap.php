@@ -115,6 +115,12 @@ set_exception_handler(function ($e) {
 });
 
 if (session_status() === PHP_SESSION_NONE) {
+    // Configure session path to be writable
+    $sessionPath = __DIR__ . '/../_data/sessions';
+    if (!is_dir($sessionPath)) {
+        mkdir($sessionPath, 0777, true);
+    }
+    session_save_path($sessionPath);
     session_start();
 }
 
