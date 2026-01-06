@@ -13,6 +13,11 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     $accentColor = Settings::get($pdo, 'accent_color', '#4b8bff');
     // Admin Setting UI Scale
     $uiScale = Settings::get($pdo, 'ui_scale', '1.0');
+    $uiScale = number_format((float)str_replace(',', '.', (string)$uiScale), 1, '.', '');
+    $allowedUiScales = ['0.8', '0.9', '1.0', '1.1', '1.2'];
+    if (!in_array($uiScale, $allowedUiScales, true)) {
+        $uiScale = '1.0';
+    }
 
     $bgType = Settings::get($pdo, 'bg_type', 'default');
     $bgValue = Settings::get($pdo, 'bg_value', '');
