@@ -35,10 +35,10 @@ render_header('Prijava', null);
         <?php if (isset($error)) echo "<p class='text-danger'>$error</p>"; ?>
 
         <label for="identifier">Uporabniško ime ali email</label>
-        <input type="text" id="identifier" name="identifier" autocomplete="username" required>
+        <input type="text" id="identifier" name="identifier" autocomplete="username" required <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
 
         <label for="password">Geslo</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <input type="password" id="password" name="password" autocomplete="current-password" required <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
 
         <button class="button" type="submit">Prijavi se</button>
 

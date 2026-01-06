@@ -68,15 +68,15 @@ render_flash($_SESSION['flash'] ?? null); unset($_SESSION['flash']);
         <h1>Registracija</h1>
 
         <label for="username">Uporabniško ime</label>
-        <input type="text" id="username" name="username" autocomplete="username" required minlength="3">
-        <label>Uporabniško ime</label>
-        <input type="text" name="username" required minlength="3" pattern="^[a-zA-Z0-9_-]+$" title="Le črke, številke, - in _">
+        <input type="text" id="username" name="username" autocomplete="username" required minlength="3" pattern="^[a-zA-Z0-9_-]+$" aria-describedby="username-help">
+        <small id="username-help" style="color: var(--muted); display: block; margin-top: 0.25rem; font-size: 0.85rem;">Le črke, številke, pomišljaji in podčrtaji</small>
 
-        <label for="email">Email (opcijsko)</label>
+        <label for="email" style="margin-top: 1rem;">Email (opcijsko)</label>
         <input type="email" id="email" name="email" autocomplete="email">
 
         <label for="password">Geslo</label>
-        <input type="password" id="password" name="password" autocomplete="new-password" required minlength="8">
+        <input type="password" id="password" name="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help">
+        <small id="password-help" style="color: var(--muted); display: block; margin-top: 0.25rem; font-size: 0.85rem;">Vsaj 8 znakov</small>
 
         <button class="button" type="submit">Ustvari račun</button>
 
