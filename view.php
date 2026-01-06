@@ -34,19 +34,16 @@ $isPublic = ($post['visibility'] ?? 'private') === 'public';
 // Check if accessed via valid share token containing this item
 $hasAccess = $isOwner || $isPublic;
 
-if (!$hasAccess) {
-    // If user is not logged in, redirect to login
-    if (!$user) {
-        header('Location: /login.php');
-        exit;
-    }
+if (!$hasAccess && !$user) {
+    // If user is not logged in and no access, redirect to login
+    header('Location: /login.php');
+    exit;
+}
 
-    // If user is logged in but not admin, deny access
-    // Admins are allowed to see everything
-    if (($user['role'] ?? '') !== 'admin') {
-         http_response_code(403);
-         die("Dostop zavrnjen. Ta vsebina je zasebna.");
-    }
+if (!$hasAccess && ($user['role'] ?? '') !== 'admin') {
+    // If user is logged in but not owner and not admin
+    http_response_code(403);
+    die("Dostop zavrnjen. Ta vsebina je zasebna.");
 }
 
 // Like Status
