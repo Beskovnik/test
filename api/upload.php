@@ -245,6 +245,13 @@ function processFile($sourcePath, $originalName, $mimeType, $fileSize, $user) {
             $dbPreview = 'uploads/preview/' . $random . '.jpg';
             $targetPreview = $uploadDir . '/preview/' . $random . '.jpg';
 
+            // Get video metadata to populate DB width/height and avoid upscaling
+            $videoInfo = Media::getVideoInfo($targetOriginal);
+            if ($videoInfo) {
+                $width = $videoInfo['width'];
+                $height = $videoInfo['height'];
+            }
+
             $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
             $previewSuccess = Media::generateVideoThumb($targetOriginal, $targetPreview, 1600);
         }
