@@ -18,80 +18,254 @@ $arsoStation = Settings::get($pdo, 'weather_arso_station_id', '');
 render_header('Vreme', $user, 'weather');
 ?>
 
-<div class="view-page" style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
-        <div>
-            <h1 style="margin:0;">Vreme</h1>
+<style>
+    /* Main Layout */
+    .weather-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Header */
+    .weather-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .weather-title h1 {
+        margin: 0;
+        font-size: 2rem;
+        line-height: 1.2;
+    }
+
+    .weather-location {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+        margin-top: 4px;
+    }
+
+    /* Sections */
+    .weather-section {
+        margin-bottom: 32px;
+    }
+
+    /* Cards - Unified Style */
+    .weather-card {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .weather-card.no-padding {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .weather-card-header {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* Default/Desktop: 2x2 */
+        gap: 16px;
+    }
+
+    .kpi-card-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        height: 100%;
+        min-height: 140px; /* Ensure equal height visual */
+    }
+
+    .kpi-icon {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+        color: var(--accent, #4b8bff);
+    }
+
+    .kpi-label {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    /* Chart */
+    .chart-wrapper {
+        width: 100%;
+        height: 350px;
+        position: relative;
+    }
+
+    /* Table */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .weather-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+    }
+
+    .weather-table th {
+        text-align: left;
+        padding: 16px 20px;
+        background: rgba(255, 255, 255, 0.05);
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .weather-table td {
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .weather-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Responsive Breakpoints */
+    /* Mobile < 640px */
+    @media (max-width: 639px) {
+        .kpi-grid {
+            grid-template-columns: 1fr; /* 1x4 */
+        }
+    }
+
+    /* Tablet 640px - 1024px */
+    @media (min-width: 640px) and (max-width: 1023px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr); /* 2x2 */
+        }
+    }
+
+    /* Desktop >= 1024px */
+    @media (min-width: 1024px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr); /* 2x2 */
+        }
+    }
+</style>
+
+<div class="weather-container">
+
+    <!-- 1. Header & Location -->
+    <div class="weather-header">
+        <div class="weather-title">
+            <h1>Vreme</h1>
             <?php if ($arsoLoc): ?>
-                <div style="color:var(--muted); font-size:0.9rem; margin-top:0.5rem;">
+                <div class="weather-location">
                     Lokacija: <strong><?php echo htmlspecialchars($arsoLoc); ?></strong>
                     <?php if ($arsoStation): ?> (Postaja: <?php echo htmlspecialchars($arsoStation); ?>)<?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
-
         <button class="button small" id="btn-refresh">Osveži</button>
     </div>
 
     <?php if (!$arsoLoc): ?>
-        <div class="card" style="text-align:center; padding:3rem;">
+        <!-- No Config State -->
+        <div class="weather-card" style="text-align:center; padding:3rem; align-items:center;">
             <h3>Ni konfiguracije</h3>
-            <p class="muted">Administrator mora nastaviti lokacijo (ARSO) v nastavitvah.</p>
+            <p style="color:rgba(255,255,255,0.6); margin-bottom:1.5rem;">Administrator mora nastaviti lokacijo (ARSO) v nastavitvah.</p>
             <?php if ($isAdmin): ?>
-                <a href="/admin/settings.php" class="button" style="margin-top:1rem;">Pojdi v nastavitve</a>
+                <a href="/admin/settings.php" class="button">Pojdi v nastavitve</a>
             <?php endif; ?>
         </div>
     <?php else: ?>
 
-        <!-- Content -->
-        <div id="weather-dashboard" style="display:none;">
-            <!-- Current Stats -->
-            <div class="grid-3" id="current-stats" style="margin-bottom:2rem;">
-                <!-- Filled via JS -->
-            </div>
-
-            <!-- Chart -->
-            <div class="card" style="margin-bottom:2rem; padding:1.5rem;">
-                <h3 style="margin-bottom:1rem;">Napoved (48h)</h3>
-                <div style="width:100%; height:300px;">
-                    <canvas id="weatherChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Forecast Table -->
-            <div class="card" style="padding:0; overflow:hidden;">
-                <h3 style="padding:1.5rem; margin:0; border-bottom:1px solid var(--border);">Podrobna Napoved</h3>
-                <div style="overflow-x:auto;">
-                    <table class="table" style="width:100%; text-align:left;">
-                        <thead>
-                            <tr style="background:rgba(255,255,255,0.05);">
-                                <th style="padding:1rem;">Čas</th>
-                                <th style="padding:1rem;">Stanje</th>
-                                <th style="padding:1rem;">Temp</th>
-                                <th style="padding:1rem;">Veter</th>
-                                <th style="padding:1rem;">Padavine</th>
-                            </tr>
-                        </thead>
-                        <tbody id="forecast-table-body">
-                            <!-- JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div style="text-align:right; font-size:0.8rem; color:var(--muted); margin-top:1rem;">
-                Vir podatkov: <a href="https://vreme.arso.gov.si/" target="_blank" style="color:var(--accent);">ARSO</a>
-            </div>
-        </div>
-
+        <!-- Loading State -->
         <div id="loading-state" style="text-align:center; padding:5rem;">
             <div class="spinner" style="margin-bottom:1rem;"></div>
-            Nalaganje podatkov...
+            <div style="color:rgba(255,255,255,0.6);">Nalaganje podatkov...</div>
         </div>
 
-        <div id="error-state" class="card danger" style="display:none; text-align:center; padding:2rem;">
+        <!-- Error State -->
+        <div id="error-state" class="weather-card" style="display:none; text-align:center; align-items:center; border-color:#ff6b6b;">
             <h3 style="color:#ff6b6b">Napaka</h3>
-            <p id="error-msg"></p>
+            <p id="error-msg" style="color:rgba(255,255,255,0.8);"></p>
+        </div>
+
+        <!-- Content Dashboard -->
+        <div id="weather-dashboard" style="display:none;">
+
+            <!-- SECTION A: Current Stats -->
+            <div class="weather-section">
+                <div id="current-stats" class="kpi-grid">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- SECTION B: Forecast Chart -->
+            <div class="weather-section">
+                <div class="weather-card">
+                    <div class="weather-card-header">Napoved (48h)</div>
+                    <div class="chart-wrapper">
+                        <canvas id="weatherChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION C: Detailed Table -->
+            <div class="weather-section">
+                <div class="weather-card no-padding">
+                    <div style="padding: 20px 20px 0 20px;">
+                        <div class="weather-card-header" style="margin-bottom:10px;">Podrobna Napoved</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="weather-table">
+                            <thead>
+                                <tr>
+                                    <th>Čas</th>
+                                    <th>Stanje</th>
+                                    <th>Temp</th>
+                                    <th>Veter</th>
+                                    <th>Padavine</th>
+                                </tr>
+                            </thead>
+                            <tbody id="forecast-table-body">
+                                <!-- Injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="text-align:right; font-size:0.8rem; color:rgba(255,255,255,0.5); margin-top:0.5rem;">
+                    Vir podatkov: <a href="https://vreme.arso.gov.si/" target="_blank" style="color:var(--accent);">ARSO</a>
+                </div>
+            </div>
+
         </div>
 
     <?php endif; ?>
@@ -131,29 +305,20 @@ render_header('Vreme', $user, 'weather');
     async function fetchData() {
         showLoading();
         try {
-            // 1. Fetch Forecast/Current (JSON)
             const res = await fetch(`/api/arso_proxy.php?action=data&location=${encodeURIComponent(CONFIG.loc)}`);
             const json = await res.json();
 
             if (!json || json.error) throw new Error(json.error || 'Napaka pri pridobivanju podatkov.');
 
-            // Structure check: ARSO returns { observation: {...}, forecast: {...} } or similar structure?
-            // Wait, looking at ARSO API docs or typical response:
-            // It usually has 'features' array if it's GeoJSON-like, or specific keys.
-            // Let's assume the proxy returns what ARSO returns.
-            // ARSO /api/1.0/location/?location=Ljubljana returns object with 'features' where features[0].properties contains 'days'.
-
-            // If proxy passed it through directly:
             let data = json;
-            // Handle ARSO wrapper (sometimes inside forecast3h or similar)
             if (data.forecast3h) data = data.forecast3h;
-            if (data.forecast1h) data = data.forecast1h; // Fallback if structure varies
+            if (data.forecast1h) data = data.forecast1h;
 
             if (data.features && data.features.length > 0) {
                  render(data.features[0].properties);
             } else {
                  console.error('Invalid Data:', json);
-                 throw new Error('Nepravilna struktura podatkov (ARSO). Prejeto: ' + JSON.stringify(json).substring(0, 200));
+                 throw new Error('Nepravilna struktura podatkov (ARSO).');
             }
 
         } catch (e) {
@@ -165,23 +330,15 @@ render_header('Vreme', $user, 'weather');
         els.loading.style.display = 'none';
         els.dashboard.style.display = 'block';
 
-        // 1. Current Stats (from latest timeline item of today)
-        // properties.days[0].timeline[0] is usually current or close to it
+        // 1. Current Stats
         const today = props.days[0];
-        const current = today.timeline[0]; // The first one is usually the most relevant "current" forecast interval
-
-        // Try to find if we have observation data merged?
-        // ARSO API 'location' endpoint gives forecast.
-        // Actual CURRENT observation comes from a different endpoint usually,
-        // but let's stick to the forecast "now" which is good enough for "Vreme".
+        const current = today.timeline[0];
 
         const temp = current.t;
         const wind = current.ff_val;
         const press = current.msl;
-        const rain = current.tp_acc; // precipitation
-        const icon = current.sky_icon_url || ''; // ARSO doesn't give full URL usually, just ID?
-        // Actually ARSO returns `pictogram_code` or similar.
-        // Let's rely on standard fields.
+        const rain = current.tp_acc;
+        // const icon = current.sky_icon_url || '';
 
         const cards = [
             { label: 'Temperatura', val: (temp !== undefined ? temp + ' °C' : '-'), icon: 'thermostat' },
@@ -190,27 +347,26 @@ render_header('Vreme', $user, 'weather');
             { label: 'Padavine', val: (rain !== undefined ? rain + ' mm' : '0 mm'), icon: 'water_drop' }
         ];
 
+        // UPDATED: Using new card structure and classes
         els.stats.innerHTML = cards.map(c => `
-            <div class="card" style="text-align:center; padding:1.5rem;">
-                <span class="material-icons" style="font-size:2rem; color:var(--accent); margin-bottom:0.5rem;">${c.icon}</span>
-                <div style="font-size:0.9rem; color:var(--muted);">${c.label}</div>
-                <div style="font-size:1.5rem; font-weight:bold;">${c.val}</div>
+            <div class="weather-card">
+                <div class="kpi-card-content">
+                    <span class="material-icons kpi-icon">${c.icon}</span>
+                    <div class="kpi-label">${c.label}</div>
+                    <div class="kpi-value">${c.val}</div>
+                </div>
             </div>
         `).join('');
 
-        // 2. Chart (48h - join day 0 and day 1 timelines)
+        // 2. Chart
         let timeline = [];
         if (props.days[0]) timeline = timeline.concat(props.days[0].timeline);
         if (props.days[1]) timeline = timeline.concat(props.days[1].timeline);
 
-        // Sort by time just in case
-        // timeline.sort((a,b) => new Date(a.valid) - new Date(b.valid));
-
-        // Take next 24-48 points (assuming hourly)
         timeline = timeline.slice(0, 48);
 
         const labels = timeline.map(t => {
-            const d = new Date(t.valid); // ISO string
+            const d = new Date(t.valid);
             return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         });
         const temps = timeline.map(t => t.t);
@@ -223,19 +379,18 @@ render_header('Vreme', $user, 'weather');
              const d = new Date(t.valid);
              const timeStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
              const dateStr = d.toLocaleDateString();
-             // Simple mapping for state if available
              const state = t.nn_shortText || t.clouds_shortText || '-';
 
              return `
-                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:0.75rem 1rem;">
-                        <div style="font-weight:bold;">${timeStr}</div>
-                        <div style="font-size:0.8rem; color:var(--muted);">${dateStr}</div>
+                <tr>
+                    <td>
+                        <div style="font-weight:bold; color:#fff;">${timeStr}</div>
+                        <div style="font-size:0.8rem; color:rgba(255,255,255,0.5);">${dateStr}</div>
                     </td>
-                    <td style="padding:0.75rem 1rem;">${state}</td>
-                    <td style="padding:0.75rem 1rem;">${t.t !== undefined ? t.t + ' °C' : '-'}</td>
-                    <td style="padding:0.75rem 1rem;">${t.ff_val !== undefined ? t.ff_val + ' m/s' : '-'}</td>
-                    <td style="padding:0.75rem 1rem;">${t.tp_acc !== undefined ? t.tp_acc + ' mm' : '-'}</td>
+                    <td>${state}</td>
+                    <td>${t.t !== undefined ? t.t + ' °C' : '-'}</td>
+                    <td>${t.ff_val !== undefined ? t.ff_val + ' m/s' : '-'}</td>
+                    <td>${t.tp_acc !== undefined ? t.tp_acc + ' mm' : '-'}</td>
                 </tr>
              `;
         }).join('');
@@ -278,17 +433,28 @@ render_header('Vreme', $user, 'weather');
                     intersect: false,
                 },
                 scales: {
-                    x: { display: true, grid: { display: false } },
+                    x: {
+                        display: true,
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.6)' }
+                    },
                     y: {
                         display: true,
                         position: 'left',
-                        grid: { color:'rgba(255,255,255,0.1)' }
+                        grid: { color:'rgba(255,255,255,0.1)' },
+                        ticks: { color: 'rgba(255,255,255,0.6)' }
                     },
                     y1: {
                         display: true,
                         position: 'right',
                         grid: { display: false },
-                        min: 0
+                        min: 0,
+                        ticks: { display: false } // Hide ticks for aesthetics if desired, but good to keep
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: 'rgba(255,255,255,0.8)' }
                     }
                 }
             }
@@ -304,7 +470,7 @@ render_header('Vreme', $user, 'weather');
     function showError(msg) {
         els.loading.style.display = 'none';
         els.dashboard.style.display = 'none';
-        els.error.style.display = 'block';
+        els.error.style.display = 'flex'; // Changed to flex to use align-items
         els.errorMsg.textContent = msg;
     }
 
