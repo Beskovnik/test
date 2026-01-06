@@ -59,7 +59,7 @@ if ($post['type'] === 'video') {
     $mediaHtml = "<img src=\"{$p}\" data-original=\"{$o}\" alt=\"{$title}\" class=\"preview-image\" loading=\"lazy\" onclick=\"this.src=this.dataset.original; this.classList.remove('preview-image');\" style=\"max-width:100%;max-height:100%;object-fit:contain;\">";
 }
 
-$shareUrl = '/view.php?s=' . urlencode($post['share_token']);
+$shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
 ?>
 <div class="view-page">
     <div class="media-panel">
