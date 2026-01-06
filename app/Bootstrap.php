@@ -22,6 +22,10 @@ error_reporting(E_ALL);
 global $debug_log;
 $debug_log = [];
 
+global $errors;
+// Holds bootstrap/setup warnings surfaced in the layout error toast.
+$errors = [];
+
 set_error_handler(function ($severity, $message, $file, $line) {
     global $debug_log;
     $debug_log[] = [
@@ -90,6 +94,9 @@ $paths = [
 foreach ($paths as $dir) {
     if (!is_dir($dir)) {
         @mkdir($dir, 0775, true);
+        if (!is_dir($dir)) {
+            $errors[] = "Missing or unwritable directory: {$dir}";
+        }
     }
 }
 

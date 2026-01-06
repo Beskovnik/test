@@ -7,7 +7,7 @@ use App\Auth;
 
 function render_header(string $title, ?array $user, string $active = 'feed'): void
 {
-    // Need global $pdo for settings. $errors from bootstrap.
+    // Need global $pdo for settings and $errors for bootstrap setup warnings.
     global $pdo, $errors;
 
     $accentColor = Settings::get($pdo, 'accent_color', '#4b8bff');
