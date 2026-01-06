@@ -54,7 +54,7 @@ if ($type === 'timeseries') {
     $stmt = $pdo->prepare("
         SELECT p.title, p.file_path, p.thumb_path, p.type,
                SUM(CASE WHEN se.event_type = 'download' THEN 1 ELSE 0 END) as downloads,
-               SUM(CASE WHEN se.event_type = 'view' THEN 0 ELSE 0 END) as views -- views are per share usually, but we might track item opens later
+               SUM(CASE WHEN se.event_type = 'view' THEN 1 ELSE 0 END) as views -- views are per share usually, but we might track item opens later
         FROM share_events se
         JOIN posts p ON se.media_id = p.id
         WHERE se.share_id = ? AND se.media_id IS NOT NULL
