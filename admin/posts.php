@@ -112,7 +112,7 @@ render_flash($_SESSION['flash'] ?? null); unset($_SESSION['flash']);
                                         ?>
                                         <div style="display:flex; gap:0.2rem; align-items:center; margin-top:0.2rem;">
                                             <input type="text" value="<?php echo htmlspecialchars($publicUrl); ?>" readonly style="width:80px; font-size:0.7em; background:rgba(0,0,0,0.2); border:none; color:var(--text); padding:2px;">
-                                            <button class="button small icon-only" onclick="navigator.clipboard.writeText(window.location.origin + '<?php echo $publicUrl; ?>'); showToast('Kopirano');" title="Kopiraj"><span class="material-icons" style="font-size:0.8em;">content_copy</span></button>
+                                            <button class="button small icon-only" onclick="copyToClipboard(window.location.origin + '<?php echo $publicUrl; ?>')" title="Kopiraj"><span class="material-icons" style="font-size:0.8em;">content_copy</span></button>
                                         </div>
                                         <?php endif; ?>
                                     <?php endif; ?>

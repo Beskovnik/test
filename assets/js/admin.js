@@ -1,18 +1,75 @@
 
 function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;';
+        document.body.appendChild(toastContainer);
+    }
 
-    // Trigger animation
-    requestAnimationFrame(() => toast.classList.add('show'));
+    const el = document.createElement('div');
+    const isError = type === 'error';
+    const borderColor = isError ? 'var(--danger, #e74c3c)' : 'var(--success, #2ecc71)';
 
+    el.className = 'toast';
+    el.style.cssText = `
+        padding: 1rem 1.5rem;
+        border-radius: 1rem;
+        background: var(--panel, #2a2a2a);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--border, #444);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border-left: 4px solid ${borderColor};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        pointer-events: auto;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    `;
+
+    el.innerHTML = `<span style="font-weight:600;">${message}</span>`;
+    toastContainer.appendChild(el);
+
+    // Animate In
+    requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+    });
+
+    // Remove after 3s
     setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-10px)';
+        setTimeout(() => el.remove(), 300);
     }, 3000);
 }
+
+// Global Copy Helper
+window.copyToClipboard = async function(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('Kopirano v odložišče!');
+    } catch (err) {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showToast('Kopirano (fallback)!');
+        } catch (err) {
+            prompt('Kopiraj povezavo:', text);
+        }
+        document.body.removeChild(textarea);
+    }
+};
 
 async function apiCall(url, data) {
     // Add CSRF token from meta tag
@@ -61,11 +118,17 @@ async function toggleUser(id, btn) {
         // In our HTML: <td><span class="badge">Role</span></td> <td><span class="badge" style="...">Status</span></td>
         // We need the status badge.
         const badges = row.querySelectorAll('.badge');
-        const statusBadge = badges[1]; // 2nd one
+        // Simple heuristic: find badge with Aktiven/Blokiran text or color
+        let statusBadge = null;
+        badges.forEach(b => {
+            if(b.innerText.includes('Aktiven') || b.innerText.includes('Blokiran')) statusBadge = b;
+        });
+        if (!statusBadge && badges.length > 1) statusBadge = badges[1];
 
         if (statusBadge) {
             statusBadge.textContent = res.active ? 'Aktiven' : 'Blokiran';
-            statusBadge.style.background = res.active ? 'green' : 'red';
+            statusBadge.style.background = res.active ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)';
+            statusBadge.style.color = res.active ? '#2ecc71' : '#e74c3c';
         }
         btn.textContent = res.active ? 'Blokiraj' : 'Aktiviraj';
     } else {
