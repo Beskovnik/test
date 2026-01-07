@@ -194,9 +194,7 @@ foreach ($grouped as $label => $items) {
              if (!empty($item['thumb_path'])) {
                  $srcs[] = '/' . $item['thumb_path'] . ' ' . $thumbW . 'w';
              }
-             if (!empty($item['optimized_path'])) {
-                 $srcs[] = '/' . $item['optimized_path'] . ' 1920w';
-             }
+             // Optimized path removed to ensure strictly the byte-limited preview is used
 
              if (count($srcs) > 0) {
                  $srcsetAttr = 'srcset="' . implode(', ', $srcs) . '"';

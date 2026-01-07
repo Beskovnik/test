@@ -257,8 +257,11 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
 
     try {
         $thumbW = (int)Settings::get($pdo, 'thumb_width', '480');
-        $thumbH = (int)Settings::get($pdo, 'thumb_height', '480');
-        $thumbQuality = (int)Settings::get($pdo, 'thumb_quality', '80');
+        // $thumbH ignored in new byte logic
+        // $thumbQuality ignored as start value is 85
+
+        $previewMaxKb = (int)Settings::get($pdo, 'preview_max_kb', '100');
+        $maxBytes = $previewMaxKb * 1024;
 
         if ($isImage) {
             $info = getimagesize($targetOriginal);
@@ -267,8 +270,8 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
                 $height = $info[1];
             }
 
-            // 1. Generate Thumb
-            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, $thumbW, $thumbH, $thumbQuality);
+            // 1. Generate Thumb (Byte Limited)
+            $thumbSuccess = Media::generatePreviewUnderBytes($targetOriginal, $targetThumb, $maxBytes, $thumbW);
 
             // 2. Generate Optimized (1920px) - Strict Requirement
             // Quality 82 for WEBP/JPEG

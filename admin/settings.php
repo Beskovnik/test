@@ -45,6 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Settings::set($pdo, 'thumb_height', (string)(int)$_POST['thumb_height']);
     Settings::set($pdo, 'thumb_quality', (string)(int)$_POST['thumb_quality']);
 
+    // Preview KB Limit
+    $previewKb = (int)$_POST['preview_max_kb'];
+    if ($previewKb < 20) $previewKb = 20;
+    if ($previewKb > 2000) $previewKb = 2000;
+    Settings::set($pdo, 'preview_max_kb', (string)$previewKb);
+
     // UI Settings
     Settings::set($pdo, 'accent_color', $_POST['accent_color']);
     Settings::set($pdo, 'ui_scale', $uiScale);
@@ -130,6 +136,10 @@ render_header('Nastavitve', $user, 'settings');
             <div>
                 <label>Kakovost (%)</label>
                 <input type="number" min="10" max="100" name="thumb_quality" value="<?php echo Settings::get($pdo, 'thumb_quality', '80'); ?>">
+            </div>
+            <div>
+                <label>Maksimalna velikost predogleda (KB)</label>
+                <input type="number" min="20" max="2000" name="preview_max_kb" value="<?php echo Settings::get($pdo, 'preview_max_kb', '100'); ?>">
             </div>
         </div>
 

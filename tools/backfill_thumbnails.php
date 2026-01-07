@@ -14,8 +14,10 @@ echo "Starting thumbnail backfill...\n";
 
 // Get Settings
 $thumbW = (int)Settings::get($pdo, 'thumb_width', '480');
-$thumbH = (int)Settings::get($pdo, 'thumb_height', '480');
-$quality = (int)Settings::get($pdo, 'thumb_quality', '80');
+$previewMaxKb = (int)Settings::get($pdo, 'preview_max_kb', '100');
+$maxBytes = $previewMaxKb * 1024;
+
+echo "Max Preview Bytes: $maxBytes (Target Width: $thumbW)\n";
 
 $sql = "SELECT * FROM posts WHERE type = 'image'";
 $stmt = $pdo->query($sql);
@@ -58,6 +60,14 @@ foreach ($posts as $post) {
         }
     }
 
+    // Check size condition if file exists
+    if (!$needsGen && file_exists($rootDir . '/' . $targetThumbPath)) {
+        if (filesize($rootDir . '/' . $targetThumbPath) > $maxBytes) {
+            $needsGen = true;
+            echo "Regenerating ID $id: Size " . filesize($rootDir . '/' . $targetThumbPath) . " > $maxBytes\n";
+        }
+    }
+
     if ($needsGen) {
         echo "Generating thumbnail for ID $id...\n";
 
@@ -66,12 +76,12 @@ foreach ($posts as $post) {
         $dir = dirname($fullTarget);
         if (!is_dir($dir)) mkdir($dir, 0777, true);
 
-        $success = Media::generateResized($sourcePath, $fullTarget, $thumbW, $thumbH, $quality);
+        $success = Media::generatePreviewUnderBytes($sourcePath, $fullTarget, $maxBytes, $thumbW);
 
         if ($success) {
             $update = $pdo->prepare("UPDATE posts SET thumb_path = :path WHERE id = :id");
             $update->execute([':path' => $targetThumbPath, ':id' => $id]);
-            echo "  -> Success: $targetThumbPath\n";
+            echo "  -> Success: $targetThumbPath (" . filesize($fullTarget) . " bytes)\n";
             $count++;
         } else {
             echo "  -> Failed to generate thumbnail.\n";

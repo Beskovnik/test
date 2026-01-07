@@ -175,6 +175,185 @@ class Media
         return $res;
     }
 
+    private static function logPreview(string $file, int $targetBytes, int $finalBytes, string $format): void
+    {
+        $dir = __DIR__ . '/../../_data/logs';
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+        $logFile = $dir . '/preview.log';
+        $msg = date('Y-m-d H:i:s') . " [Preview] File: $file | Target: $targetBytes | Final: $finalBytes | Format: $format" . PHP_EOL;
+        file_put_contents($logFile, $msg, FILE_APPEND);
+    }
+
+    public static function generatePreviewUnderBytes(string $source, string $target, int $maxBytes, int $startWidth = 480): bool
+    {
+        if (!file_exists($source)) return false;
+
+        // Force WEBP if possible, else match extension or default to jpg
+        $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
+        if ($ext !== 'webp' && $ext !== 'jpg' && $ext !== 'jpeg' && $ext !== 'png') {
+             $ext = 'jpg';
+        }
+
+        // 1. Try Imagick
+        if (extension_loaded('imagick')) {
+            try {
+                $im = new Imagick($source);
+
+                // Orientation
+                $orientation = $im->getImageOrientation();
+                if ($orientation !== Imagick::ORIENTATION_TOPLEFT && $orientation !== Imagick::ORIENTATION_UNDEFINED) {
+                    switch ($orientation) {
+                         case Imagick::ORIENTATION_BOTTOMRIGHT: $im->rotateImage("#000", 180); break;
+                         case Imagick::ORIENTATION_RIGHTTOP: $im->rotateImage("#000", 90); break;
+                         case Imagick::ORIENTATION_LEFTBOTTOM: $im->rotateImage("#000", -90); break;
+                    }
+                    $im->setImageOrientation(Imagick::ORIENTATION_TOPLEFT);
+                }
+
+                // Initial Resize
+                $w = $im->getImageWidth();
+                $h = $im->getImageHeight();
+                if ($w > $startWidth) {
+                    $im->thumbnailImage($startWidth, 0);
+                }
+
+                $im->setImageFormat($ext);
+
+                $quality = 85;
+
+                for ($i = 0; $i < 20; $i++) {
+                    $im->setImageCompressionQuality($quality);
+                    $blob = $im->getImageBlob();
+                    $len = strlen($blob);
+
+                    if ($len <= $maxBytes) {
+                        file_put_contents($target, $blob);
+                        self::logPreview(basename($source), $maxBytes, $len, $ext);
+                        $im->clear(); $im->destroy();
+                        return true;
+                    }
+
+                    // Iterative reduction
+                    if ($quality > 50) {
+                        $quality -= 10;
+                    } else {
+                        $currentW = $im->getImageWidth();
+                        if ($currentW < 320) {
+                            // Stop shrinking, just save
+                            file_put_contents($target, $blob);
+                            self::logPreview(basename($source), $maxBytes, $len, $ext . ' (limit-reached)');
+                            $im->clear(); $im->destroy();
+                            return true;
+                        }
+                        // Resize 85%
+                        $im->thumbnailImage((int)($currentW * 0.85), 0);
+                        $quality = 80; // Reset quality
+                    }
+                }
+
+                // Fallback
+                $im->writeImage($target);
+                self::logPreview(basename($source), $maxBytes, $im->getImageLength(), $ext);
+                $im->clear(); $im->destroy();
+                return true;
+
+            } catch (Exception $e) {
+                error_log("Imagick Preview Error: " . $e->getMessage());
+            }
+        }
+
+        // Fallback logic using GD if Imagick fails
+        if (!extension_loaded('gd')) return false;
+
+        $info = @getimagesize($source);
+        if (!$info) return false;
+        [$width, $height, $type] = $info;
+
+        $src = match ($type) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($source),
+            IMAGETYPE_PNG => @imagecreatefrompng($source),
+            IMAGETYPE_WEBP => @imagecreatefromwebp($source),
+            default => null
+        };
+        if (!$src) return false;
+
+        // Handle Orientation (GD)
+        if ($type === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($source);
+            if ($exif && isset($exif['Orientation'])) {
+                $src = match ($exif['Orientation']) {
+                    3 => imagerotate($src, 180, 0),
+                    6 => imagerotate($src, -90, 0),
+                    8 => imagerotate($src, 90, 0),
+                    default => $src
+                };
+            }
+        }
+
+        $currentW = imagesx($src);
+        $currentH = imagesy($src);
+
+        // Initial scale
+        if ($currentW > $startWidth) {
+             $ratio = $startWidth / $currentW;
+             $newW = $startWidth;
+             $newH = (int)($currentH * $ratio);
+             $tmp = imagecreatetruecolor($newW, $newH);
+             imagecopyresampled($tmp, $src, 0, 0, 0, 0, $newW, $newH, $currentW, $currentH);
+             imagedestroy($src);
+             $src = $tmp;
+             $currentW = $newW;
+             $currentH = $newH;
+        }
+
+        $quality = 85;
+
+        for ($i = 0; $i < 15; $i++) {
+             ob_start();
+             if ($ext === 'webp') imagewebp($src, null, $quality);
+             else imagejpeg($src, null, $quality);
+             $data = ob_get_contents();
+             ob_end_clean();
+
+             $len = strlen($data);
+             if ($len <= $maxBytes) {
+                 file_put_contents($target, $data);
+                 self::logPreview(basename($source), $maxBytes, $len, $ext . ' (GD)');
+                 imagedestroy($src);
+                 return true;
+             }
+
+             if ($quality > 50) {
+                 $quality -= 10;
+             } else {
+                 if ($currentW < 320) {
+                     file_put_contents($target, $data);
+                     self::logPreview(basename($source), $maxBytes, $len, $ext . ' (GD-limit)');
+                     imagedestroy($src);
+                     return true;
+                 }
+                 $newW = (int)($currentW * 0.85);
+                 $newH = (int)($currentH * 0.85);
+                 $tmp = imagecreatetruecolor($newW, $newH);
+                 imagecopyresampled($tmp, $src, 0, 0, 0, 0, $newW, $newH, $currentW, $currentH);
+                 imagedestroy($src);
+                 $src = $tmp;
+                 $currentW = $newW;
+                 $currentH = $newH;
+                 $quality = 80;
+             }
+        }
+
+        ob_start();
+        if ($ext === 'webp') imagewebp($src, null, $quality);
+        else imagejpeg($src, null, $quality);
+        $data = ob_get_clean();
+        file_put_contents($target, $data);
+        self::logPreview(basename($source), $maxBytes, strlen($data), $ext . ' (GD-fallback)');
+        imagedestroy($src);
+        return true;
+    }
+
     public static function generatePlaceholderThumb(string $target): bool
     {
         if (!extension_loaded('gd') || !function_exists('imagecreatetruecolor')) {
