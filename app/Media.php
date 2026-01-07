@@ -14,41 +14,59 @@ class Media
         return !empty($result);
     }
 
-    public static function getVideoInfo(string $source): ?array
+    public static function checkMemoryForImage(int $width, int $height, int $bpp = 4): bool
     {
-        if (!self::isFfmpegAvailable()) {
-            return null;
-        }
+        $limit = ini_get('memory_limit');
+        if ($limit === '-1') return true; // No limit
 
-        $cmd = sprintf(
-            'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 %s',
-            escapeshellarg($source)
-        );
-        $output = shell_exec($cmd);
+        // Parse limit (e.g. 128M)
+        $limitInt = (int)$limit;
+        $unit = strtoupper(substr($limit, -1));
+        if ($unit === 'G') $limitInt *= 1024 * 1024 * 1024;
+        elseif ($unit === 'M') $limitInt *= 1024 * 1024;
+        elseif ($unit === 'K') $limitInt *= 1024;
 
-        if ($output) {
-            $parts = explode(',', trim($output));
-            if (count($parts) === 2) {
-                return [
-                    'width' => (int)$parts[0],
-                    'height' => (int)$parts[1]
-                ];
-            }
-        }
+        // Approximate memory needed: width * height * bytes_per_pixel * overhead_factor (1.7)
+        $needed = $width * $height * $bpp * 1.7;
 
-        return null;
+        // Current usage
+        $usage = memory_get_usage();
+
+        return ($usage + $needed) < $limitInt;
     }
 
     public static function generateResized(string $source, string $target, int $maxWidth, int $maxHeight, int $quality = 80): bool
     {
+        if (!file_exists($source)) return false;
+
         $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
 
-        // Try Imagick
+        // 1. Try Imagick
         if (extension_loaded('imagick')) {
             try {
                 $imagick = new Imagick($source);
+
+                // Rotation (before strip)
+                $orientation = $imagick->getImageOrientation();
+                if ($orientation !== Imagick::ORIENTATION_TOPLEFT) {
+                    switch ($orientation) {
+                        case Imagick::ORIENTATION_BOTTOMRIGHT:
+                            $imagick->rotateImage("#000000", 180);
+                            break;
+                        case Imagick::ORIENTATION_RIGHTTOP:
+                            $imagick->rotateImage("#000000", 90);
+                            break;
+                        case Imagick::ORIENTATION_LEFTBOTTOM:
+                            $imagick->rotateImage("#000000", -90);
+                            break;
+                    }
+                    $imagick->setImageOrientation(Imagick::ORIENTATION_TOPLEFT);
+                }
+
                 $imagick->setImageCompressionQuality($quality);
-                $imagick->stripImage();
+                $imagick->stripImage(); // Remove metadata
+
+                // Resize (best fit)
                 $imagick->resizeImage($maxWidth, $maxHeight, Imagick::FILTER_LANCZOS, 1, true);
 
                 if ($ext === 'webp') {
@@ -64,43 +82,86 @@ class Media
                 $imagick->destroy();
                 return true;
             } catch (Exception $e) {
-                // Fallback
+                // Fallback to GD if Imagick fails
                 error_log("Imagick error: " . $e->getMessage());
             }
         }
 
-        // Fallback GD
-        if (!extension_loaded('gd')) return false;
+        // 2. Fallback GD
+        if (!extension_loaded('gd')) {
+            error_log("GD extension missing. Cannot resize image.");
+            return false;
+        }
 
-        $info = getimagesize($source);
+        // Get dimensions and type
+        $info = @getimagesize($source);
         if (!$info) return false;
         [$width, $height, $type] = $info;
 
-        $scale = min($maxWidth / $width, $maxHeight / $height, 1);
-        if ($scale >= 1) {
-            return copy($source, $target);
+        // Check Memory
+        if (!self::checkMemoryForImage($width, $height)) {
+             error_log("Memory limit reached for image resizing: {$width}x{$height}");
+             return false;
         }
 
-        $newWidth = (int)round($width * $scale);
-        $newHeight = (int)round($height * $scale);
-
+        // Load Source
         $src = match ($type) {
-            IMAGETYPE_JPEG => imagecreatefromjpeg($source),
-            IMAGETYPE_PNG => imagecreatefrompng($source),
-            IMAGETYPE_WEBP => imagecreatefromwebp($source),
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($source),
+            IMAGETYPE_PNG => @imagecreatefrompng($source),
+            IMAGETYPE_WEBP => @imagecreatefromwebp($source),
             default => null
         };
 
         if (!$src) return false;
 
+        // Handle Rotation (GD) - Only for JPEG usually
+        if ($type === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($source);
+            if ($exif && isset($exif['Orientation'])) {
+                $orientation = $exif['Orientation'];
+                $src = match ($orientation) {
+                    3 => imagerotate($src, 180, 0),
+                    6 => imagerotate($src, -90, 0),
+                    8 => imagerotate($src, 90, 0),
+                    default => $src
+                };
+                // Update dimensions after rotation
+                $width = imagesx($src);
+                $height = imagesy($src);
+            }
+        }
+
+        // Calculate new dimensions (Aspect Ratio)
+        $ratio = $width / $height;
+        $targetRatio = $maxWidth / $maxHeight;
+
+        // Logic: Fit within box
+        if ($targetRatio > $ratio) {
+            $newWidth = (int)round($maxHeight * $ratio);
+            $newHeight = $maxHeight;
+        } else {
+            $newHeight = (int)round($maxWidth / $ratio);
+            $newWidth = $maxWidth;
+        }
+
+        // Don't upscale
+        if ($newWidth > $width || $newHeight > $height) {
+            $newWidth = $width;
+            $newHeight = $height;
+        }
+
         $dst = imagecreatetruecolor($newWidth, $newHeight);
+
+        // Handle Transparency
         if ($type == IMAGETYPE_PNG || $type == IMAGETYPE_WEBP) {
             imagealphablending($dst, false);
             imagesavealpha($dst, true);
         }
 
+        // Resample
         imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 
+        // Save
         $res = match ($ext) {
             'webp' => imagewebp($dst, $target, $quality),
             'jpg', 'jpeg' => imagejpeg($dst, $target, $quality),
@@ -108,8 +169,10 @@ class Media
             default => false
         };
 
+        // Cleanup
         imagedestroy($src);
         imagedestroy($dst);
+
         return $res;
     }
 
@@ -139,7 +202,6 @@ class Media
     {
         if (self::isFfmpegAvailable()) {
             // Seek to 0.1s instead of 1s to better handle short videos
-            // Fixed the duplicated format string bug
             $cmd = sprintf(
                 'ffmpeg -y -ss 0.1 -i %s -frames:v 1 -vf "scale=\'min(%d,iw)\':-1" %s 2>&1',
                 escapeshellarg($source),

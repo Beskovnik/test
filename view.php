@@ -69,7 +69,11 @@ if ($user) {
 $title = $post['id'] . ' ' . ($post['type'] === 'video' ? 'video' : 'slika');
 render_header($title, $user);
 
-$previewSrc = !empty($post['preview_path']) ? '/' . $post['preview_path'] : '/' . $post['file_path'];
+// Use Optimized Path if available, then Preview (legacy), then Original
+$previewSrc = !empty($post['optimized_path']) ? '/' . $post['optimized_path'] :
+              (!empty($post['preview_path']) ? '/' . $post['preview_path'] :
+              '/' . $post['file_path']);
+
 $originalSrc = '/' . $post['file_path'];
 $thumbSrc = !empty($post['thumb_path']) ? '/' . $post['thumb_path'] : $previewSrc;
 

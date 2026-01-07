@@ -152,48 +152,23 @@ try {
 
 // Robust MIME detection function
 function get_real_mime_type($path) {
-    // 1. Primary: FileInfo
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime = $finfo->file($path);
-
-    // If it looks valid, return it
     if ($mime && $mime !== 'application/octet-stream' && $mime !== 'application/x-empty') {
         return $mime;
     }
-
-    // 2. Secondary: Magic Bytes (Manual Fallback)
     $handle = @fopen($path, 'rb');
-    if (!$handle) {
-        return 'application/octet-stream';
-    }
-    $bytes = fread($handle, 12); // Read first 12 bytes
+    if (!$handle) return 'application/octet-stream';
+    $bytes = fread($handle, 12);
     fclose($handle);
-
-    if ($bytes === false || strlen($bytes) < 4) {
-        return 'application/octet-stream';
-    }
-
+    if ($bytes === false || strlen($bytes) < 4) return 'application/octet-stream';
     $hex = bin2hex($bytes);
-
-    // Image signatures
     if (str_starts_with($hex, 'ffd8ff')) return 'image/jpeg';
     if (str_starts_with($hex, '89504e470d0a1a0a')) return 'image/png';
     if (str_starts_with($hex, '47494638')) return 'image/gif';
-    if (str_starts_with($hex, '52494646') && substr($hex, 16, 8) === '57454250') return 'image/webp'; // RIFF....WEBP
-
-    // Video signatures
-    // MP4/QuickTime (ftyp) - often starts at offset 4
-    if (substr($hex, 8, 8) === '66747970') return 'video/mp4'; // ftyp
-    // MKV/WebM
+    if (str_starts_with($hex, '52494646') && substr($hex, 16, 8) === '57454250') return 'image/webp';
+    if (substr($hex, 8, 8) === '66747970') return 'video/mp4';
     if (str_starts_with($hex, '1a45dfa3')) return 'video/x-matroska';
-
-    // Optional: Command line file (if enabled/available) - User said optional optimization
-    // exec("file -b --mime-type " . escapeshellarg($path), $output, $returnCode);
-    // if ($returnCode === 0 && !empty($output[0])) {
-    //    return trim($output[0]);
-    // }
-
-    // Return the finfo result if everything else fails (likely octet-stream)
     return $mime;
 }
 
@@ -216,19 +191,7 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
         send_error_response('Blocked file type', 'BLOCKED_TYPE');
     }
 
-    // Verify MIME type server-side with fallback
     $realMime = get_real_mime_type($sourcePath);
-
-    // If still octet-stream, try to guess from extension if secure
-    if ($realMime === 'application/octet-stream') {
-        // Only trust extension if we really couldn't detect anything, but usually get_real_mime_type should catch it.
-        // We will log this edge case.
-        if (defined('DEBUG') && DEBUG) {
-            app_log("MIME detection completely failed for $originalName, returned octet-stream.");
-        }
-    }
-
-    // Log detection result
     if (defined('DEBUG') && DEBUG) {
         app_log("Detected MIME for $originalName: $realMime");
     }
@@ -237,53 +200,60 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
     $isVideo = str_starts_with($realMime, 'video/');
 
     if ($isImage) {
-        if (!in_array($realMime, $allowedImages, true)) {
-            send_error_response('Invalid image format: ' . $realMime, 'INVALID_FORMAT');
-        }
-        if ($fileSize > $maxImageBytes) {
-            send_error_response('Image too large', 'TOO_LARGE');
-        }
+        if (!in_array($realMime, $allowedImages, true)) send_error_response('Invalid image format', 'INVALID_FORMAT');
+        if ($fileSize > $maxImageBytes) send_error_response('Image too large', 'TOO_LARGE');
     } elseif ($isVideo) {
-        if (!in_array($realMime, $allowedVideos, true)) {
-            send_error_response('Invalid video format: ' . $realMime, 'INVALID_FORMAT');
-        }
-        if ($fileSize > $maxVideoBytes) {
-            send_error_response('Video too large', 'TOO_LARGE');
-        }
+        if (!in_array($realMime, $allowedVideos, true)) send_error_response('Invalid video format', 'INVALID_FORMAT');
+        if ($fileSize > $maxVideoBytes) send_error_response('Video too large', 'TOO_LARGE');
     } else {
-        send_error_response('Unsupported media type: ' . $realMime, 'UNSUPPORTED_TYPE');
+        send_error_response('Unsupported media type', 'UNSUPPORTED_TYPE');
     }
 
     // Destinations
     $random = bin2hex(random_bytes(16));
     $filename = $random . '.' . $ext;
+
+    // Paths
     $uploadDir = __DIR__ . '/../uploads';
+    $optimizedDir = __DIR__ . '/../optimized'; // New optimized root
+
     $targetOriginal = $uploadDir . '/original/' . $filename;
 
-    // Ensure subdirectories exist
+    // Ensure dirs
     if (!is_dir($uploadDir . '/original')) mkdir($uploadDir . '/original', 0777, true);
     if (!is_dir($uploadDir . '/thumbs')) mkdir($uploadDir . '/thumbs', 0777, true);
-    if (!is_dir($uploadDir . '/preview')) mkdir($uploadDir . '/preview', 0777, true);
+    if (!is_dir($optimizedDir)) mkdir($optimizedDir, 0777, true);
 
-    // Move (or rename if from chunks)
+    // Save Original
     if (!rename($sourcePath, $targetOriginal)) {
         if (!copy($sourcePath, $targetOriginal)) {
-            send_error_response('Failed to save file to ' . $targetOriginal, 'SAVE_ERROR');
+            send_error_response('Failed to save file', 'SAVE_ERROR');
         }
     }
 
-    $targetThumb = $uploadDir . '/thumbs/' . $random . '.webp';
-    $targetPreview = $uploadDir . '/preview/' . $random . '.webp';
-
+    // --- OPTIMIZATION PIPELINE ---
     $width = null;
     $height = null;
     $thumbSuccess = false;
-    $previewSuccess = false;
+    $optimizedSuccess = false;
 
-    // Paths relative to root for DB
+    // Database Paths (relative to web root)
     $dbOriginal = 'uploads/original/' . $filename;
-    $dbThumb = 'uploads/thumbs/' . $random . '.webp';
-    $dbPreview = 'uploads/preview/' . $random . '.webp';
+
+    // Default Thumbs/Optimized filenames (prefer WEBP for images)
+    $thumbName = $random . '.webp';
+    $optimizedName = $random . '.webp';
+
+    // For video, we use JPG thumbs
+    if ($isVideo) {
+        $thumbName = $random . '.jpg';
+    }
+
+    $targetThumb = $uploadDir . '/thumbs/' . $thumbName;
+    $targetOptimized = $optimizedDir . '/' . $optimizedName;
+
+    $dbThumb = 'uploads/thumbs/' . $thumbName;
+    $dbOptimized = 'optimized/' . $optimizedName;
 
     try {
         if ($isImage) {
@@ -292,47 +262,58 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
                 $width = $info[0];
                 $height = $info[1];
             }
-            // Generate Thumb (420px)
-            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, 420, 420);
-            // Generate Preview (1600px)
-            $previewSuccess = Media::generateResized($targetOriginal, $targetPreview, 1600, 1600);
+
+            // 1. Generate Thumb (480px) - Strict Requirement
+            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, 480, 480, 75);
+
+            // 2. Generate Optimized (1920px) - Strict Requirement
+            // Quality 82 for WEBP/JPEG
+            $optimizedSuccess = Media::generateResized($targetOriginal, $targetOptimized, 1920, 1920, 82);
+
         } else {
-            // Video
-            $dbThumb = 'uploads/thumbs/' . $random . '.jpg';
-            $targetThumb = $uploadDir . '/thumbs/' . $random . '.jpg';
-            $dbPreview = 'uploads/preview/' . $random . '.jpg';
-            $targetPreview = $uploadDir . '/preview/' . $random . '.jpg';
+            // Video: Only Thumbs (No transcoding of video file itself)
+            // But we need a thumb for the grid
 
-            // Try to generate preview (high res, smart scaling)
-            $previewSuccess = Media::generateVideoThumb($targetOriginal, $targetPreview, 1600);
+            // Try generate thumb (480px)
+            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
 
-            if ($previewSuccess) {
-                // If preview generated, use it to make the thumbnail
-                $thumbSuccess = Media::generateResized($targetPreview, $targetThumb, 480, 480);
-            } else {
-                // Fallback
-                $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
-            }
+            // No optimized video transcoding (as requested)
+            // So optimized path maps to original? Or null?
+            // User: "Optimized (za normalno gledanje)... fallback to original"
+            // For video, we don't have an optimized version.
+            $dbOptimized = null;
+            $optimizedSuccess = false;
         }
     } catch (Exception $e) {
         error_log("Media generation failed: " . $e->getMessage());
     }
 
-    // Fallbacks
+    // Fallbacks logic for DB
+    // If thumb failed, use original (if image) or placeholder (if video)
     if (!$thumbSuccess) {
         if ($isImage) $dbThumb = $dbOriginal;
         else $dbThumb = 'assets/img/placeholder.svg';
     }
-    if (!$previewSuccess) {
-        if ($isImage) $dbPreview = $dbOriginal;
-        else $dbPreview = $dbThumb;
+
+    // If optimized failed (or is video), use original
+    if ($isImage && !$optimizedSuccess) {
+        $dbOptimized = $dbOriginal;
+    }
+    // For video, dbOptimized remains null or we set to original?
+    // Let's set to NULL if it doesn't exist, and handle fallback in view.
+    // Or set to original.
+    if ($isVideo) {
+        $dbOptimized = $dbOriginal; // View page will use this
     }
 
-    // Save to DB
+    // DB Insert
     $shareToken = bin2hex(random_bytes(32));
-    // Updated for new schema: owner_user_id and default visibility=private
-    $stmt = $pdo->prepare('INSERT INTO posts (user_id, owner_user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path)
-        VALUES (:uid, :owner_uid, :title, :created, "private", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview)');
+
+    // We update `preview_path` to be the same as `optimized_path` for backward compatibility
+    $dbPreview = $dbOptimized;
+
+    $stmt = $pdo->prepare('INSERT INTO posts (user_id, owner_user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path, optimized_path)
+        VALUES (:uid, :owner_uid, :title, :created, "private", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview, :optimized)');
 
     $stmt->execute([
         ':uid' => $user['id'],
@@ -347,7 +328,8 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
         ':w' => $width,
         ':h' => $height,
         ':thumb' => $dbThumb,
-        ':preview' => $dbPreview
+        ':preview' => $dbPreview,
+        ':optimized' => $dbOptimized
     ]);
 
     send_json_response(['success' => true, 'post_id' => (int)$pdo->lastInsertId()]);
