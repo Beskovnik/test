@@ -105,6 +105,17 @@ render_flash($_SESSION['flash'] ?? null); unset($_SESSION['flash']);
                                 <div style="display:flex; flex-direction:column; gap:0.3rem; font-size:0.9rem;">
                                     <span><span class="material-icons" style="font-size:0.9rem; vertical-align:middle;">visibility</span> <?php echo (int)$post['views']; ?></span>
                                     <span><span class="material-icons" style="font-size:0.9rem; vertical-align:middle;">open_in_new</span> <?php echo htmlspecialchars($post['visibility']); ?></span>
+                                    <?php if(!empty($post['is_public'])): ?>
+                                        <span class="badge success" style="font-size:0.7em;">JAVNO</span>
+                                        <?php if(!empty($post['public_token'])):
+                                            $publicUrl = '/public.php?t=' . $post['public_token'];
+                                        ?>
+                                        <div style="display:flex; gap:0.2rem; align-items:center; margin-top:0.2rem;">
+                                            <input type="text" value="<?php echo htmlspecialchars($publicUrl); ?>" readonly style="width:80px; font-size:0.7em; background:rgba(0,0,0,0.2); border:none; color:var(--text); padding:2px;">
+                                            <button class="button small icon-only" onclick="navigator.clipboard.writeText(window.location.origin + '<?php echo $publicUrl; ?>'); showToast('Kopirano');" title="Kopiraj"><span class="material-icons" style="font-size:0.8em;">content_copy</span></button>
+                                        </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                             <td style="padding: 1rem;">

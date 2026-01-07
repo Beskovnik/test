@@ -216,6 +216,76 @@
         }
 
         // 3.4 Share Buttons (Delegate)
+        // Handle "Public Link Generation" separately if specific class exists
+        const publicLinkBtn = document.getElementById('publicLinkBtn');
+        if (publicLinkBtn) {
+            publicLinkBtn.addEventListener('click', async () => {
+                if (!postId) return;
+
+                // Show loading state
+                const originalText = publicLinkBtn.innerHTML;
+                publicLinkBtn.disabled = true;
+                publicLinkBtn.innerHTML = 'Generiranje...';
+
+                try {
+                    const res = await fetch('/api/media/generate_public_link.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({id: postId, csrf_token: csrfToken})
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        // Update UI
+                        const container = document.getElementById('publicLinkContainer');
+                        if (container) {
+                            container.style.display = 'block';
+                            const input = container.querySelector('input');
+                            if (input) input.value = data.public_url;
+                        }
+                        // Change status badge if exists
+                        const badge = document.getElementById('statusBadge');
+                        if (badge) {
+                            badge.innerText = 'Javno';
+                            badge.className = 'badge success'; // Assuming success class makes it green/visible
+                        }
+
+                        // Update visibility select if present
+                        if (visibilitySelect) {
+                            visibilitySelect.value = 'public'; // Sync logic
+                        }
+
+                        showToast('Javna povezava ustvarjena!');
+                    } else {
+                        showToast(data.error || 'Napaka pri generiranju', 'error');
+                    }
+                } catch (e) {
+                    showToast('Napaka omrežja', 'error');
+                } finally {
+                    publicLinkBtn.disabled = false;
+                    publicLinkBtn.innerHTML = originalText;
+                }
+            });
+        }
+
+        // Copy Public Link
+        const copyPublicLinkBtn = document.getElementById('copyPublicLinkBtn');
+        if (copyPublicLinkBtn) {
+            copyPublicLinkBtn.addEventListener('click', async () => {
+                const input = document.querySelector('#publicLinkContainer input');
+                if (input && input.value) {
+                    try {
+                        await navigator.clipboard.writeText(input.value);
+                        showToast('Javni URL kopiran!');
+                    } catch (err) {
+                        input.select();
+                        document.execCommand('copy');
+                        showToast('Javni URL kopiran (fallback)!');
+                    }
+                }
+            });
+        }
+
         const shareBtns = document.querySelectorAll('.js-share-btn');
         shareBtns.forEach(btn => {
             btn.addEventListener('click', async () => {
