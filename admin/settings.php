@@ -48,6 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Settings::set($pdo, 'weather_arso_location', $_POST['weather_arso_location']);
     Settings::set($pdo, 'weather_arso_station_id', $_POST['weather_arso_station_id']);
 
+    // Image Optimization Settings
+    Settings::set($pdo, 'thumb_size', (string)(int)$_POST['thumb_size']);
+    Settings::set($pdo, 'optimized_size', (string)(int)$_POST['optimized_size']);
+    Settings::set($pdo, 'thumb_quality', (string)(int)$_POST['thumb_quality']);
+    Settings::set($pdo, 'optimized_quality', (string)(int)$_POST['optimized_quality']);
+
     Audit::log($pdo, $user['id'], 'settings_update', 'Updated settings');
 
     header('Location: /admin/settings.php');
@@ -57,6 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $maxImageGb = Settings::get($pdo, 'max_image_gb', '5.0');
 $maxVideoGb = Settings::get($pdo, 'max_video_gb', '5.0');
 $maxFiles = Settings::get($pdo, 'max_files_per_upload', '100');
+$thumbSize = Settings::get($pdo, 'thumb_size', '480');
+$optSize = Settings::get($pdo, 'optimized_size', '1920');
+$thumbQ = Settings::get($pdo, 'thumb_quality', '75');
+$optQ = Settings::get($pdo, 'optimized_quality', '82');
 $accent = Settings::get($pdo, 'accent_color', '#4b8bff');
 $uiScale = Settings::get($pdo, 'ui_scale', '1.0');
 $allowedUiScales = ['0.8', '0.9', '1.0', '1.1', '1.2'];
@@ -109,6 +119,28 @@ render_header('Nastavitve', $user, 'settings');
             <div>
                 <label>Max Datotek naenkrat</label>
                 <input type="number" max="100" name="max_files_per_upload" value="<?php echo $maxFiles; ?>">
+            </div>
+        </div>
+
+        <h3 style="margin-top:2rem;">Optimizacija Slik</h3>
+        <div class="grid-2">
+            <div>
+                <label>Thumbnail Velikost (px)</label>
+                <input type="number" name="thumb_size" value="<?php echo $thumbSize; ?>" min="100" max="1000">
+                <small class="muted">Max dolžina daljše stranice za grid (privzeto 480).</small>
+            </div>
+            <div>
+                <label>Optimized Velikost (px)</label>
+                <input type="number" name="optimized_size" value="<?php echo $optSize; ?>" min="800" max="4000">
+                <small class="muted">Max dolžina za ogled (privzeto 1920).</small>
+            </div>
+            <div>
+                <label>Thumbnail Kvaliteta (%)</label>
+                <input type="number" name="thumb_quality" value="<?php echo $thumbQ; ?>" min="10" max="100">
+            </div>
+            <div>
+                <label>Optimized Kvaliteta (%)</label>
+                <input type="number" name="optimized_quality" value="<?php echo $optQ; ?>" min="10" max="100">
             </div>
         </div>
 

@@ -179,6 +179,12 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
     $maxImageGb = (float)Settings::get($pdo, 'max_image_gb', '5.0');
     $maxVideoGb = (float)Settings::get($pdo, 'max_video_gb', '5.0');
 
+    // Optimization Config
+    $thumbSize = (int)Settings::get($pdo, 'thumb_size', '480');
+    $optSize = (int)Settings::get($pdo, 'optimized_size', '1920');
+    $thumbQ = (int)Settings::get($pdo, 'thumb_quality', '75');
+    $optQ = (int)Settings::get($pdo, 'optimized_quality', '82');
+
     $maxImageBytes = $maxImageGb * 1024 * 1024 * 1024;
     $maxVideoBytes = $maxVideoGb * 1024 * 1024 * 1024;
 
@@ -263,19 +269,18 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
                 $height = $info[1];
             }
 
-            // 1. Generate Thumb (480px) - Strict Requirement
-            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, 480, 480, 75);
+            // 1. Generate Thumb (Strict Requirement)
+            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, $thumbSize, $thumbSize, $thumbQ);
 
-            // 2. Generate Optimized (1920px) - Strict Requirement
-            // Quality 82 for WEBP/JPEG
-            $optimizedSuccess = Media::generateResized($targetOriginal, $targetOptimized, 1920, 1920, 82);
+            // 2. Generate Optimized (Strict Requirement)
+            $optimizedSuccess = Media::generateResized($targetOriginal, $targetOptimized, $optSize, $optSize, $optQ);
 
         } else {
             // Video: Only Thumbs (No transcoding of video file itself)
             // But we need a thumb for the grid
 
-            // Try generate thumb (480px)
-            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+            // Try generate thumb
+            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, $thumbSize);
 
             // No optimized video transcoding (as requested)
             // So optimized path maps to original? Or null?

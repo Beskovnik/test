@@ -8,6 +8,7 @@ require_once __DIR__ . '/../app/Bootstrap.php';
 
 use App\Database;
 use App\Media;
+use App\Settings;
 
 // Disable time limit
 set_time_limit(0);
@@ -15,6 +16,14 @@ set_time_limit(0);
 echo "Starting Backfill Optimization...\n";
 
 $pdo = Database::connect();
+
+// Config
+$thumbSize = (int)Settings::get($pdo, 'thumb_size', '480');
+$optSize = (int)Settings::get($pdo, 'optimized_size', '1920');
+$thumbQ = (int)Settings::get($pdo, 'thumb_quality', '75');
+$optQ = (int)Settings::get($pdo, 'optimized_quality', '82');
+
+echo "Using Settings: Thumb={$thumbSize}px (Q{$thumbQ}), Optimized={$optSize}px (Q{$optQ})\n";
 
 // Get all posts
 $stmt = $pdo->query("SELECT * FROM posts ORDER BY id DESC");
@@ -81,9 +90,9 @@ foreach ($posts as $post) {
 
         $success = false;
         if ($type === 'image') {
-            $success = Media::generateResized($sourceAbs, $targetThumbAbs, 480, 480, 75);
+            $success = Media::generateResized($sourceAbs, $targetThumbAbs, $thumbSize, $thumbSize, $thumbQ);
         } else {
-            $success = Media::generateVideoThumb($sourceAbs, $targetThumbAbs, 480);
+            $success = Media::generateVideoThumb($sourceAbs, $targetThumbAbs, $thumbSize);
         }
 
         if ($success) {
@@ -108,7 +117,7 @@ foreach ($posts as $post) {
 
             echo "[$count/$total] ID $id: Generating Optimized...\n";
 
-            $success = Media::generateResized($sourceAbs, $targetOptAbs, 1920, 1920, 82);
+            $success = Media::generateResized($sourceAbs, $targetOptAbs, $optSize, $optSize, $optQ);
 
             if ($success) {
                 $newOptimizedPath = $targetOptRel;
