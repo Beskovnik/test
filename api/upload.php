@@ -256,9 +256,9 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
     $dbOptimized = 'optimized/' . $optimizedName;
 
     try {
-        $thumbW = (int)Settings::get($pdo, 'thumb_width', '480');
-        $thumbH = (int)Settings::get($pdo, 'thumb_height', '480');
-        $thumbQuality = (int)Settings::get($pdo, 'thumb_quality', '80');
+        // NEW: Get Preview Max KB limit
+        $previewMaxKb = (int)Settings::get($pdo, 'preview_max_kb', '100');
+        $maxBytes = $previewMaxKb * 1024;
 
         if ($isImage) {
             $info = getimagesize($targetOriginal);
@@ -267,8 +267,9 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
                 $height = $info[1];
             }
 
-            // 1. Generate Thumb
-            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, $thumbW, $thumbH, $thumbQuality);
+            // 1. Generate Thumb/Preview (Strict KB limit)
+            // We use generatePreviewUnderBytes instead of simple resize
+            $thumbSuccess = Media::generatePreviewUnderBytes($targetOriginal, $targetThumb, $maxBytes, 1920, 85);
 
             // 2. Generate Optimized (1920px) - Strict Requirement
             // Quality 82 for WEBP/JPEG
@@ -279,12 +280,20 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
             // But we need a thumb for the grid
 
             // Try generate thumb
-            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, $thumbW);
+            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+
+            // NOTE: For video thumbnails we might want to apply the KB limit too,
+            // but generateVideoThumb uses ffmpeg directly.
+            // We could re-process the generated thumb to ensure it meets the size limit.
+            if ($thumbSuccess && file_exists($targetThumb)) {
+                $vThumbSize = filesize($targetThumb);
+                if ($vThumbSize > $maxBytes) {
+                    // Re-process video thumb to fit size
+                    Media::generatePreviewUnderBytes($targetThumb, $targetThumb, $maxBytes, 480, 80);
+                }
+            }
 
             // No optimized video transcoding (as requested)
-            // So optimized path maps to original? Or null?
-            // User: "Optimized (za normalno gledanje)... fallback to original"
-            // For video, we don't have an optimized version.
             $dbOptimized = null;
             $optimizedSuccess = false;
         }

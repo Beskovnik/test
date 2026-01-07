@@ -20,8 +20,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $maxFiles = (int)$_POST['max_files_per_upload'];
     $uiScale = str_replace(',', '.', (string)$_POST['ui_scale']);
 
+    // Preview KB Limit
+    $previewMaxKb = (int)$_POST['preview_max_kb'];
+
     // Validation logic...
     if ($maxFiles > 100) $maxFiles = 100;
+
+    // Validate Preview Max KB (20 - 2000)
+    if ($previewMaxKb < 20) $previewMaxKb = 20;
+    if ($previewMaxKb > 2000) $previewMaxKb = 2000;
 
     // Validate UI Scale
     $uiScaleVal = (float)$uiScale;
@@ -39,6 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Settings::set($pdo, 'max_image_gb', $maxImageGb);
     Settings::set($pdo, 'max_video_gb', $maxVideoGb);
     Settings::set($pdo, 'max_files_per_upload', (string)$maxFiles);
+
+    // Save Preview KB
+    Settings::set($pdo, 'preview_max_kb', (string)$previewMaxKb);
 
     // Thumb Settings
     Settings::set($pdo, 'thumb_width', (string)(int)$_POST['thumb_width']);
@@ -64,6 +74,8 @@ $maxVideoGb = Settings::get($pdo, 'max_video_gb', '5.0');
 $maxFiles = Settings::get($pdo, 'max_files_per_upload', '100');
 $accent = Settings::get($pdo, 'accent_color', '#4b8bff');
 $uiScale = Settings::get($pdo, 'ui_scale', '1.0');
+$previewMaxKb = (int)Settings::get($pdo, 'preview_max_kb', '100');
+
 $allowedUiScales = ['0.8', '0.9', '1.0', '1.1', '1.2'];
 $uiScale = number_format((float)str_replace(',', '.', (string)$uiScale), 1, '.', '');
 if (!in_array($uiScale, $allowedUiScales, true)) {
@@ -120,15 +132,21 @@ render_header('Nastavitve', $user, 'settings');
         <h3>Optimizacija Slik (Thumbnails)</h3>
         <div class="grid-2">
             <div>
+                <label>Maksimalna velikost predogleda (KB)</label>
+                <input type="number" min="20" max="2000" name="preview_max_kb" value="<?php echo $previewMaxKb; ?>">
+                <small class="muted">Sistem bo prilagodil kakovost in dimenzije, da bo velikost pod to mejo.</small>
+            </div>
+            <!-- Legacy inputs kept for backward compatibility or specialized usage -->
+            <div style="display:none;">
                 <label>Thumb Širina (px)</label>
                 <input type="number" name="thumb_width" value="<?php echo Settings::get($pdo, 'thumb_width', '480'); ?>">
             </div>
-            <div>
+            <div style="display:none;">
                 <label>Thumb Višina (px)</label>
                 <input type="number" name="thumb_height" value="<?php echo Settings::get($pdo, 'thumb_height', '480'); ?>">
             </div>
             <div>
-                <label>Kakovost (%)</label>
+                <label>Začetna Kakovost (%)</label>
                 <input type="number" min="10" max="100" name="thumb_quality" value="<?php echo Settings::get($pdo, 'thumb_quality', '80'); ?>">
             </div>
         </div>
