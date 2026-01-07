@@ -27,7 +27,19 @@ if (!$stmt->fetch()) {
 }
 
 // Update
-$stmt = $pdo->prepare("UPDATE posts SET visibility = ? WHERE id = ?");
-$stmt->execute([$visibility, $mediaId]);
+// If setting to private, also clear is_public flag to disable the public link
+$sql = "UPDATE posts SET visibility = ?";
+$params = [$visibility, $mediaId];
+
+if ($visibility === 'private') {
+    $sql .= ", is_public = 0";
+}
+// If setting to public, we generally leave is_public alone (it might be public via link or just visible in gallery).
+// But for consistency, if 'public' is chosen, maybe we don't force is_public=1 unless generated via that specific flow?
+// Let's stick to: disabling public link via "Private" toggle works.
+// "Public" toggle via view.php just makes it visible in gallery, doesn't necessarily generate a token.
+
+$stmt = $pdo->prepare($sql . " WHERE id = ?");
+$stmt->execute($params);
 
 Response::json(['success' => true]);
