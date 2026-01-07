@@ -39,14 +39,17 @@ function render_flash(?array $flash): void
         $type = htmlspecialchars($flash['type']);
         $msg = htmlspecialchars($flash['message']);
         $icon = $type === 'success' ? 'check_circle' : 'error';
+        $id = uniqid('toast_');
+        // Simplified HTML relying on CSS classes
         echo <<<HTML
-        <div class="toast show" style="position: fixed; top: 80px; right: 20px; z-index: 9999;">
-            <div class="toast-body {$type}-toast" style="padding: 1rem 1.5rem; border-radius: 1rem; display: flex; align-items: center; gap: 0.5rem; background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--border); color: #fff;">
-                <span class="material-icons">{$icon}</span>
-                <span>{$msg}</span>
-            </div>
+        <div id="{$id}" class="toast show toast-{$type}">
+            <span class="material-icons">{$icon}</span>
+            <span>{$msg}</span>
         </div>
-        <script>setTimeout(() => document.querySelector('.toast')?.remove(), 4000);</script>
+        <script>
+            setTimeout(() => document.getElementById('{$id}')?.classList.remove('show'), 3000);
+            setTimeout(() => document.getElementById('{$id}')?.remove(), 3500);
+        </script>
 HTML;
     }
 }
