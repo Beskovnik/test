@@ -309,8 +309,16 @@
                     return;
                 }
                 const bodyInput = commentForm.querySelector('textarea');
+                const submitBtn = commentForm.querySelector('button[type="submit"]');
                 const body = bodyInput.value.trim();
+
                 if (!body) return;
+
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Objavljam...';
+                submitBtn.style.opacity = '0.7';
+                submitBtn.style.cursor = 'not-allowed';
 
                 try {
                     const res = await fetch('/api/comment_add.php', {
@@ -328,6 +336,11 @@
                     }
                 } catch(e) {
                     showToast('Napaka omrežja.', 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.style.opacity = '';
+                    submitBtn.style.cursor = '';
                 }
             });
         }

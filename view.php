@@ -110,7 +110,7 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
             <?php if ($isOwner): ?>
                 <div style="flex:1; display:flex; gap:0.5rem;">
                      <!-- Visibility Toggle -->
-                    <select id="visibilitySelect" data-id="<?php echo $post['id']; ?>" class="button ghost" style="flex:1; appearance:none; padding-right:1rem; text-align:center;">
+                    <select id="visibilitySelect" aria-label="Nastavi vidnost" data-id="<?php echo $post['id']; ?>" class="button ghost" style="flex:1; appearance:none; padding-right:1rem; text-align:center;">
                         <option value="private" <?php echo ($post['visibility'] === 'private') ? 'selected' : ''; ?>>🔒 Zasebno</option>
                         <option value="public" <?php echo ($post['visibility'] === 'public') ? 'selected' : ''; ?>>🌍 Javno</option>
                     </select>
@@ -119,7 +119,7 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
                         Deli <span class="material-icons" style="font-size:1rem;margin-left:0.5rem;">share</span>
                     </button>
                 </div>
-                <button class="button danger icon-only js-delete-btn" data-id="<?php echo $post['id']; ?>" title="Izbriši"><span class="material-icons">delete</span></button>
+                <button class="button danger icon-only js-delete-btn" aria-label="Izbriši objavo" data-id="<?php echo $post['id']; ?>" title="Izbriši"><span class="material-icons">delete</span></button>
             <?php endif; ?>
         </div>
 
