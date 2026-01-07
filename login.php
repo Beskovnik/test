@@ -49,37 +49,38 @@ render_header('Prijava', null);
 <div class="auth-page">
     <form class="card form" method="post">
         <?php echo csrf_field(); ?>
-        <div style="text-align: center; margin-bottom: 1.5rem;">
-            <h1 style="margin: 0; font-size: 2rem; background: linear-gradient(135deg, #fff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Galerija</h1>
-            <p style="margin: 0.5rem 0 0; color: var(--muted);">Dobrodošli nazaj</p>
+
+        <div class="auth-header">
+            <h1 class="auth-title">Galerija</h1>
+            <p class="auth-subtitle">Dobrodošli nazaj</p>
         </div>
 
         <?php if (isset($error)): ?>
-            <div style="background: rgba(255, 71, 87, 0.1); border: 1px solid var(--danger); color: #ff8fa3; padding: 0.75rem; border-radius: 0.75rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                <span class="material-icons">error_outline</span>
+            <div style="background: rgba(255, 71, 87, 0.1); border: 1px solid var(--danger); color: #ff8fa3; padding: 0.75rem; border-radius: 0.75rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+                <span class="material-icons" style="font-size: 1.2rem;">error_outline</span>
                 <span><?php echo htmlspecialchars($error); ?></span>
             </div>
         <?php endif; ?>
 
-        <div style="display:flex; flex-direction:column; gap:0.5rem;">
-            <label for="identifier" style="color:var(--muted); font-size:0.9rem; font-weight:500;">Uporabniško ime ali email</label>
-            <input type="text" id="identifier" name="identifier" autocomplete="username" required
+        <div class="form-group">
+            <label for="identifier">Uporabniško ime ali email</label>
+            <input type="text" id="identifier" name="identifier" class="form-control" autocomplete="username" required
                    placeholder="Vpišite svoje podatke"
                    value="<?php echo htmlspecialchars(isset($username) ? $username : ''); ?>"
                    <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:0.5rem;">
-            <label for="password" style="color:var(--muted); font-size:0.9rem; font-weight:500;">Geslo</label>
-            <input type="password" id="password" name="password" autocomplete="current-password" required
+        <div class="form-group">
+            <label for="password">Geslo</label>
+            <input type="password" id="password" name="password" class="form-control" autocomplete="current-password" required
                    placeholder="••••••••"
                    <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
         </div>
 
-        <button class="button" type="submit" style="margin-top: 1rem; width: 100%; justify-content: center;">Prijavi se</button>
+        <button class="button" type="submit" style="width: 100%; margin-top: 1rem;">Prijavi se</button>
 
-        <p style="margin-top: 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem;">
-            Nimaš računa? <a href="/register.php" style="color: var(--accent); font-weight: 600;">Registracija</a>
+        <p class="auth-footer">
+            Nimaš računa? <a href="/register.php">Registracija</a>
         </p>
     </form>
 </div>

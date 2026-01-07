@@ -45,19 +45,23 @@ render_flash($_SESSION['flash'] ?? null); unset($_SESSION['flash']);
 <div class="auth-page">
     <form class="card form" method="post">
         <?php echo csrf_field(); ?>
-        <h1 style="margin-bottom:1.5rem; text-align:center;">Inicialni Admin</h1>
 
-        <div style="margin-bottom:1rem;">
-            <label style="display:block; margin-bottom:0.5rem;">Uporabniško ime</label>
-            <input type="text" name="username" required style="width:100%;">
+        <div class="auth-header">
+            <h1 class="auth-title">Inicialni Admin</h1>
+            <p class="auth-subtitle">Ustvari prvega administratorja</p>
         </div>
 
-        <div style="margin-bottom:1.5rem;">
-            <label style="display:block; margin-bottom:0.5rem;">Geslo</label>
-            <input type="password" name="password" required style="width:100%;">
+        <div class="form-group">
+            <label for="username">Uporabniško ime</label>
+            <input type="text" id="username" name="username" class="form-control" required placeholder="admin">
         </div>
 
-        <button class="button" type="submit" style="width:100%;">Ustvari admina</button>
+        <div class="form-group">
+            <label for="password">Geslo</label>
+            <input type="password" id="password" name="password" class="form-control" required placeholder="Močno geslo">
+        </div>
+
+        <button class="button" type="submit" style="width:100%; margin-top:1rem;">Ustvari admina</button>
     </form>
 </div>
 <?php

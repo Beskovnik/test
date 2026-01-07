@@ -67,32 +67,32 @@ unset($_SESSION['flash']);
 <div class="auth-page">
     <form class="card form" method="post">
         <?php echo csrf_field(); ?>
-        <div style="text-align: center; margin-bottom: 1.5rem;">
-            <h1 style="margin: 0; font-size: 2rem; background: linear-gradient(135deg, #fff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Galerija</h1>
-            <p style="margin: 0.5rem 0 0; color: var(--muted);">Ustvari nov račun</p>
+
+        <div class="auth-header">
+            <h1 class="auth-title">Galerija</h1>
+            <p class="auth-subtitle">Ustvari nov račun</p>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
-            <label for="username" style="color:var(--muted); font-size:0.9rem; font-weight:500;">Uporabniško ime</label>
-            <input type="text" id="username" name="username" autocomplete="username" required minlength="3" pattern="^[a-zA-Z0-9_-]+$" aria-describedby="username-help">
-            <small id="username-help" style="color: var(--muted); font-size: 0.85rem;">Le črke, številke, pomišljaji in podčrtaji</small>
+        <div class="form-group">
+            <label for="username">Uporabniško ime</label>
+            <input type="text" id="username" name="username" class="form-control" autocomplete="username" required minlength="3" pattern="^[a-zA-Z0-9_-]+$" aria-describedby="username-help" placeholder="Izberi uporabniško ime">
+            <small id="username-help" style="color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; display: block;">Le črke, številke, pomišljaji in podčrtaji</small>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
-            <label for="email" style="color:var(--muted); font-size:0.9rem; font-weight:500;">Email (opcijsko)</label>
-            <input type="email" id="email" name="email" autocomplete="email">
+        <div class="form-group">
+            <label for="email">Email (opcijsko)</label>
+            <input type="email" id="email" name="email" class="form-control" autocomplete="email" placeholder="tvoj@email.com">
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
-            <label for="password" style="color:var(--muted); font-size:0.9rem; font-weight:500;">Geslo</label>
-            <input type="password" id="password" name="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help">
-            <small id="password-help" style="color: var(--muted); font-size: 0.85rem;">Vsaj 8 znakov</small>
+        <div class="form-group">
+            <label for="password">Geslo</label>
+            <input type="password" id="password" name="password" class="form-control" autocomplete="new-password" required minlength="8" aria-describedby="password-help" placeholder="Vsaj 8 znakov">
         </div>
 
-        <button class="button" type="submit" style="margin-top: 1rem; width: 100%; justify-content: center;">Ustvari račun</button>
+        <button class="button" type="submit" style="width: 100%; margin-top: 1rem;">Ustvari račun</button>
 
-        <p style="margin-top: 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem;">
-            Že imaš račun? <a href="/login.php" style="color: var(--accent); font-weight: 600;">Prijavi se</a>
+        <p class="auth-footer">
+            Že imaš račun? <a href="/login.php">Prijavi se</a>
         </p>
     </form>
 </div>
