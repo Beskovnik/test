@@ -18,57 +18,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Fetch next page content
                 const url = new URL(window.location.href);
                 url.searchParams.set('page', nextPage);
+                // Optimization: Request only partial HTML (no header/footer) to reduce bandwidth and parsing time
+                url.searchParams.set('partial', '1');
 
                 const response = await fetch(url.toString());
                 const text = await response.text();
 
-                // Parse response to find grid items
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(text, 'text/html');
+                // Optimization: Use temporary container instead of DOMParser for faster fragment creation
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = text;
 
                 // Extract new time groups or append to existing
-                const newGroups = doc.querySelectorAll('.time-group');
+                const newGroups = tempDiv.querySelectorAll('.time-group');
+
+                // Use DocumentFragment for batch insertion to minimize reflows
+                const fragment = document.createDocumentFragment();
+                let lastGroup = document.querySelector('.time-group:last-of-type');
+                // Optimization: Cache last group title to avoid repeated DOM reads
+                let lastGroupTitle = lastGroup ? (lastGroup.querySelector('h2')?.textContent.trim() || null) : null;
 
                 if (newGroups.length > 0) {
-                    let lastGroup = document.querySelector('.time-group:last-of-type');
-
                     newGroups.forEach(group => {
                         // Check if last group on page has same title (date)
                         const groupTitleEl = group.querySelector('h2');
                         const groupTitle = groupTitleEl ? groupTitleEl.textContent.trim() : null;
 
-                        let lastGroupTitle = null;
-                        if (lastGroup) {
-                            const lastTitleEl = lastGroup.querySelector('h2');
-                            lastGroupTitle = lastTitleEl ? lastTitleEl.textContent.trim() : null;
-                        }
-
                         if (lastGroup && groupTitle && lastGroupTitle === groupTitle) {
-                            // Merge same-day groups in infinite scroll logic
-                            // If the new group has the same title as the last group on the page (e.g., "Danes"),
-                            // we merge the grids to avoid duplicate headers and preserve visual continuity.
+                            // Merge same-day groups
                             const sourceGrid = group.querySelector('.grid');
                             const targetGrid = lastGroup.querySelector('.grid');
 
                             if (sourceGrid && targetGrid) {
+                                // Move all children to document fragment first if we were appending to DOM,
+                                // but here we are appending to existing DOM node.
+                                // We can use a fragment for the items to append them all at once.
+                                const itemsFragment = document.createDocumentFragment();
                                 while (sourceGrid.firstChild) {
-                                    targetGrid.appendChild(sourceGrid.firstChild);
+                                    itemsFragment.appendChild(sourceGrid.firstChild);
                                 }
+                                targetGrid.appendChild(itemsFragment);
                             }
                         } else {
-                            // Append new group before pagination/sentinel
-                            sentinel.parentNode.insertBefore(group, sentinel);
+                            // Append new group
+                            fragment.appendChild(group);
                             lastGroup = group;
+                            lastGroupTitle = groupTitle;
                         }
                     });
+
+                    // Batch insert all new groups
+                    if (fragment.childNodes.length > 0) {
+                        sentinel.parentNode.insertBefore(fragment, sentinel);
+                    }
 
                     // Update state
                     nextPage++;
                     sentinel.dataset.nextPage = nextPage;
 
                     // Check if the fetched page has a "next page" indicator in its logic
-                    // We can check if the fetched page had a sentinel with has-more=true
-                    const newSentinel = doc.getElementById('scroll-sentinel');
+                    const newSentinel = tempDiv.querySelector('#scroll-sentinel');
                     if (newSentinel && newSentinel.dataset.hasMore === 'true') {
                         hasMore = true;
                     } else {

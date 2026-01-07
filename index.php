@@ -91,42 +91,49 @@ foreach ($posts as $post) {
     $grouped[time_group_label((int)$post['created_at'])][] = $post;
 }
 
-// Render Header
-render_header('Galerija' . ($viewMode === 'public' ? ' (Javno)' : ''), $user, $typeFilter === 'video' ? 'videos' : 'feed');
+// Optimization: Partial rendering for infinite scroll
+$isPartial = isset($_GET['partial']) && $_GET['partial'] === '1';
 
-// Inject Gallery Assets
-echo '<link rel="stylesheet" href="/assets/gallery.css">';
+if (!$isPartial) {
+    // Render Header
+    render_header('Galerija' . ($viewMode === 'public' ? ' (Javno)' : ''), $user, $typeFilter === 'video' ? 'videos' : 'feed');
 
-// Gallery Toolbar (Multi-select)
-echo '
-<div class="gallery-toolbar" id="gallery-toolbar">
-    <div style="display:flex;align-items:center;gap:1rem;">
-        <span style="font-weight:bold;color:white;" id="selected-count">Izbrano: 0</span>
+    // Inject Gallery Assets
+    echo '<link rel="stylesheet" href="/assets/gallery.css">';
+
+    // Gallery Toolbar (Multi-select)
+    echo '
+    <div class="gallery-toolbar" id="gallery-toolbar">
+        <div style="display:flex;align-items:center;gap:1rem;">
+            <span style="font-weight:bold;color:white;" id="selected-count">Izbrano: 0</span>
+        </div>
+        <div class="actions">
+            <button class="button small" id="bulk-share-btn" style="background:var(--accent);color:white;border:none;">
+                <span class="material-icons" style="font-size:16px;vertical-align:middle;margin-right:4px;">share</span> Deli javno
+            </button>
+            <button class="button small secondary" id="cancel-selection" style="background:rgba(255,255,255,0.1);color:white;border:none;">Prekliči</button>
+        </div>
     </div>
-    <div class="actions">
-        <button class="button small" id="bulk-share-btn" style="background:var(--accent);color:white;border:none;">
-            <span class="material-icons" style="font-size:16px;vertical-align:middle;margin-right:4px;">share</span> Deli javno
-        </button>
-        <button class="button small secondary" id="cancel-selection" style="background:rgba(255,255,255,0.1);color:white;border:none;">Prekliči</button>
-    </div>
-</div>
-';
+    ';
 
-// Top Controls (Select Mode Toggle) - Injected below standard header controls via layout, but we need it here in content
-echo '<div style="margin: 1rem 0; display:flex; justify-content:flex-end;">';
-echo '<button class="button small secondary" id="toggle-select-mode" style="background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;gap:6px;">
-        <span class="material-icons" style="font-size:16px">checklist</span> Izberi več
-      </button>';
-echo '</div>';
+    // Top Controls (Select Mode Toggle) - Injected below standard header controls via layout, but we need it here in content
+    echo '<div style="margin: 1rem 0; display:flex; justify-content:flex-end;">';
+    echo '<button class="button small secondary" id="toggle-select-mode" style="background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;gap:6px;">
+            <span class="material-icons" style="font-size:16px">checklist</span> Izberi več
+        </button>';
+    echo '</div>';
+}
 
-
-if (!$posts && $page === 1) {
+if (!$posts && $page === 1 && !$isPartial) {
     echo '<div style="padding:4rem;text-align:center;color:var(--muted);font-size:1.2rem;">Ni objav. Naložite prve fotografije ali videe!</div>';
 }
 
 // Pre-calculate fallback for robustness
 $fallback = '/assets/img/placeholder.svg';
 $jsFallback = json_encode($fallback);
+
+// Optimization: Global index for fetchpriority
+$globalIndex = 0;
 
 foreach ($grouped as $label => $items) {
     echo '<section class="time-group">';
@@ -160,11 +167,15 @@ foreach ($grouped as $label => $items) {
             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
         }
 
+        // Optimization: Priority for first few items
+        $fetchPriority = ($globalIndex < 4 && $page === 1) ? 'high' : 'low';
+        $globalIndex++;
+
         echo '<a href="/view.php?id=' . $id . '" class="gallery-card" data-id="' . $id . '">';
 
         // Image Wrapper
         echo '<div class="card-image-wrapper">';
-            echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
+            echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" fetchpriority="' . $fetchPriority . '" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
 
             // Badges
             echo '<div class="card-badges">';
@@ -211,4 +222,6 @@ if (count($posts) > 0) {
 
 echo '<script src="/assets/gallery.js"></script>';
 
-render_footer();
+if (!$isPartial) {
+    render_footer();
+}
