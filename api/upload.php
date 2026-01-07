@@ -261,15 +261,14 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
         $maxBytes = $previewMaxKb * 1024;
 
         if ($isImage) {
-            $info = getimagesize($targetOriginal);
-            if ($info) {
-                $width = $info[0];
-                $height = $info[1];
-            }
+            // Extract Metadata
+            $metadata = Media::getMetadata($targetOriginal);
+            $width = $metadata['width'];
+            $height = $metadata['height'];
 
             // 1. Generate Thumb/Preview (Strict KB limit)
-            // We use generatePreviewUnderBytes instead of simple resize
-            $thumbSuccess = Media::generatePreviewUnderBytes($targetOriginal, $targetThumb, $maxBytes, 1920, 85);
+            // Use 640px max width for thumbnails as requested (320-640 range)
+            $thumbSuccess = Media::generatePreviewUnderBytes($targetOriginal, $targetThumb, $maxBytes, 640, 80);
 
             // 2. Generate Optimized (1920px) - Strict Requirement
             // Quality 82 for WEBP/JPEG
@@ -325,8 +324,20 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
     // We update `preview_path` to be the same as `optimized_path` for backward compatibility
     $dbPreview = $dbOptimized;
 
-    $stmt = $pdo->prepare('INSERT INTO posts (user_id, owner_user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path, optimized_path)
-        VALUES (:uid, :owner_uid, :title, :created, "private", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview, :optimized)');
+    // Get final metadata for DB (taken_at, etc)
+    // For Video, we might default to filemtime or current time if extraction is hard
+    $photoTakenAt = time();
+    $exifJson = null;
+
+    if ($isImage && isset($metadata)) {
+        $photoTakenAt = $metadata['taken_at'] ?? time();
+        $exifJson = json_encode($metadata);
+    } else {
+        $photoTakenAt = filemtime($targetOriginal);
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO posts (user_id, owner_user_id, title, created_at, visibility, share_token, type, file_path, mime, size_bytes, width, height, thumb_path, preview_path, optimized_path, photo_taken_at, exif_json)
+        VALUES (:uid, :owner_uid, :title, :created, "private", :token, :type, :path, :mime, :size, :w, :h, :thumb, :preview, :optimized, :taken, :exif)');
 
     $stmt->execute([
         ':uid' => $user['id'],
@@ -342,7 +353,9 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
         ':h' => $height,
         ':thumb' => $dbThumb,
         ':preview' => $dbPreview,
-        ':optimized' => $dbOptimized
+        ':optimized' => $dbOptimized,
+        ':taken' => $photoTakenAt,
+        ':exif' => $exifJson
     ]);
 
     send_json_response(['success' => true, 'post_id' => (int)$pdo->lastInsertId()]);

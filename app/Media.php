@@ -373,4 +373,107 @@ class Media
         // Fallback to placeholder if FFmpeg fails or is missing
         return self::generatePlaceholderThumb($target);
     }
+
+    public static function getMetadata(string $path): array
+    {
+        $meta = [
+            'taken_at' => null,
+            'make' => null,
+            'model' => null,
+            'lens' => null,
+            'iso' => null,
+            'aperture' => null,
+            'shutter' => null,
+            'focal' => null,
+            'width' => 0,
+            'height' => 0,
+            'gps' => null,
+            'raw_exif' => []
+        ];
+
+        if (!file_exists($path)) return $meta;
+
+        $info = @getimagesize($path);
+        if ($info) {
+            $meta['width'] = $info[0];
+            $meta['height'] = $info[1];
+        }
+
+        if (function_exists('exif_read_data')) {
+            // Suppress errors for invalid EXIF
+            // Read EXIF with arrays (0)
+            try {
+                $exif = @exif_read_data($path, 'EXIF', 0);
+                if ($exif) {
+                    $meta['raw_exif'] = $exif;
+                    $meta['make'] = isset($exif['Make']) ? trim($exif['Make']) : null;
+                    $meta['model'] = isset($exif['Model']) ? trim($exif['Model']) : null;
+                    $meta['iso'] = $exif['ISOSpeedRatings'] ?? null;
+
+                    // Lens
+                    $meta['lens'] = $exif['LensModel'] ?? $exif['LensInfo'] ?? null;
+
+                    // Aperture
+                    if (isset($exif['FNumber'])) {
+                        $val = $exif['FNumber'];
+                        if (strpos($val, '/') !== false) {
+                            [$num, $den] = explode('/', $val);
+                            if ($den != 0) $meta['aperture'] = round($num / $den, 1);
+                        } else {
+                            $meta['aperture'] = (float)$val;
+                        }
+                    } elseif (isset($exif['ApertureValue'])) {
+                        // ApertureValue is usually APEX, but simplified here
+                         $val = $exif['ApertureValue'];
+                         if (strpos($val, '/') !== false) {
+                             [$num, $den] = explode('/', $val);
+                             if ($den != 0) $meta['aperture'] = round($num / $den, 1);
+                         }
+                    }
+
+                    // Shutter
+                     if (isset($exif['ExposureTime'])) {
+                        $meta['shutter'] = $exif['ExposureTime'];
+                    }
+
+                     // Focal
+                     if (isset($exif['FocalLength'])) {
+                         $val = $exif['FocalLength'];
+                         if (strpos($val, '/') !== false) {
+                            [$num, $den] = explode('/', $val);
+                            if ($den != 0) $meta['focal'] = round($num / $den, 1);
+                        } else {
+                            $meta['focal'] = (float)$val;
+                        }
+                     }
+
+                     // GPS
+                     if (isset($exif['GPSLatitude']) && isset($exif['GPSLongitude'])) {
+                         // Very basic check, proper parsing needed for array formats
+                         $meta['gps'] = 'Yes';
+                     }
+
+                    // DateTime
+                    $dateStr = $exif['DateTimeOriginal'] ?? $exif['CreateDate'] ?? $exif['DateTimeDigitized'] ?? null;
+                    if ($dateStr) {
+                        // EXIF format is usually YYYY:MM:DD HH:MM:SS
+                        // PHP strtotime handles it well usually
+                        $ts = strtotime($dateStr);
+                        if ($ts !== false) {
+                            $meta['taken_at'] = $ts;
+                        }
+                    }
+                }
+            } catch (\Throwable $t) {
+                // Ignore exif errors
+            }
+        }
+
+        // Fallback for taken_at
+        if (!$meta['taken_at']) {
+            $meta['taken_at'] = filemtime($path);
+        }
+
+        return $meta;
+    }
 }

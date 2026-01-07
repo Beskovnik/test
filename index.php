@@ -12,6 +12,7 @@ $pdo = Database::connect();
 // Params
 $typeFilter = $_GET['type'] ?? null;
 $search = trim($_GET['q'] ?? '');
+$sortMode = $_GET['sort'] ?? 'taken_desc'; // 'taken_desc' (default) or 'upload_desc'
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 40;
 $offset = ($page - 1) * $perPage;
@@ -45,13 +46,22 @@ if ($search !== '') {
     $params[':q'] = '%' . $search . '%';
 }
 
+// Sorting logic
+$orderBy = 'created_at DESC'; // default fallback
+if ($sortMode === 'taken_desc') {
+    // coalesce to created_at if photo_taken_at is null
+    $orderBy = 'COALESCE(photo_taken_at, created_at) DESC, created_at DESC';
+} elseif ($sortMode === 'upload_desc') {
+    $orderBy = 'created_at DESC';
+}
+
 $whereClause = implode(' AND ', $where);
 $sql = "SELECT posts.*, users.username,
         (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) as like_count,
         (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count
         FROM posts LEFT JOIN users ON posts.user_id = users.id
         WHERE {$whereClause}
-        ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        ORDER BY {$orderBy} LIMIT :limit OFFSET :offset";
 
 $stmt = $pdo->prepare($sql);
 foreach ($params as $key => $value) {
@@ -89,7 +99,11 @@ function time_ago(int $timestamp): string {
 
 $grouped = [];
 foreach ($posts as $post) {
-    $grouped[time_group_label((int)$post['created_at'])][] = $post;
+    // Use photo_taken_at for grouping if sorting by it
+    $ts = ($sortMode === 'taken_desc' && !empty($post['photo_taken_at']))
+        ? (int)$post['photo_taken_at']
+        : (int)$post['created_at'];
+    $grouped[time_group_label($ts)][] = $post;
 }
 
 // Optimization: Partial rendering for infinite scroll
@@ -117,8 +131,23 @@ if (!$isPartial) {
     </div>
     ';
 
-    // Top Controls (Select Mode Toggle) - Injected below standard header controls via layout, but we need it here in content
-    echo '<div style="margin: 1rem 0; display:flex; justify-content:flex-end;">';
+    // Top Controls (Select Mode Toggle + Sorting)
+    echo '<div style="margin: 1rem 0; display:flex; justify-content:space-between; align-items:center;">';
+
+    // Sorting Dropdown
+    $selTaken = $sortMode === 'taken_desc' ? 'selected' : '';
+    $selUpload = $sortMode === 'upload_desc' ? 'selected' : '';
+    echo '<form method="GET" action="/" style="margin:0; display: flex; align-items: center; gap: 0.5rem;">';
+    if ($viewMode) echo '<input type="hidden" name="view" value="' . htmlspecialchars($viewMode) . '">';
+    if ($typeFilter) echo '<input type="hidden" name="type" value="' . htmlspecialchars($typeFilter) . '">';
+    if ($search) echo '<input type="hidden" name="q" value="' . htmlspecialchars($search) . '">';
+    echo '<span style="color:var(--muted); font-size: 0.9rem;">Razvrsti:</span>';
+    echo '<select name="sort" onchange="this.form.submit()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-main); padding: 5px 10px; border-radius:8px;">
+            <option value="taken_desc" ' . $selTaken . '>Datum nastanka</option>
+            <option value="upload_desc" ' . $selUpload . '>Datum nalaganja</option>
+          </select>';
+    echo '</form>';
+
     echo '<button class="button small secondary" id="toggle-select-mode" style="background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;gap:6px;">
             <span class="material-icons" style="font-size:16px">checklist</span> Izberi več
         </button>';
@@ -209,7 +238,22 @@ foreach ($grouped as $label => $items) {
         $fetchPriority = ($globalIndex < 4 && $page === 1) ? 'high' : 'low';
         $globalIndex++;
 
-        echo '<a href="/view.php?id=' . $id . '" class="gallery-card" data-id="' . $id . '">';
+        // Prepare Meta Data for Lightbox
+        $metaDataAttrs = '';
+        if (!empty($item['exif_json'])) {
+            $exifData = htmlspecialchars($item['exif_json'], ENT_QUOTES, 'UTF-8');
+            $metaDataAttrs .= ' data-exif="' . $exifData . '"';
+        }
+        $metaDataAttrs .= ' data-size="' . round($item['size_bytes'] / 1024 / 1024, 2) . ' MB"';
+        $metaDataAttrs .= ' data-dims="' . $item['width'] . ' x ' . $item['height'] . '"';
+        $metaDataAttrs .= ' data-mime="' . htmlspecialchars($item['mime']) . '"';
+        $metaDataAttrs .= ' data-filename="' . htmlspecialchars(basename($item['file_path'])) . '"';
+        $metaDataAttrs .= ' data-original="' . htmlspecialchars('/' . $item['file_path']) . '"';
+        $metaDataAttrs .= ' data-title="' . htmlspecialchars($title) . '"';
+        $metaDataAttrs .= ' data-type="' . htmlspecialchars($item['type']) . '"';
+
+        // Lightbox trigger class added to anchor
+        echo '<a href="/view.php?id=' . $id . '" class="gallery-card lightbox-trigger" data-id="' . $id . '" ' . $metaDataAttrs . '>';
 
         // Image Wrapper
         echo '<div class="card-image-wrapper">';
@@ -259,6 +303,7 @@ if (count($posts) > 0) {
 }
 
 echo '<script src="/assets/gallery.js"></script>';
+echo '<script src="/assets/js/infinite_scroll.js"></script>';
 
 if (!$isPartial) {
     render_footer();

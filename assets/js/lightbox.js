@@ -130,6 +130,66 @@ class SimpleLightbox {
                     color: rgba(255, 255, 255, 0.8);
                     pointer-events: none;
                 }
+                /* Info Panel */
+                .lightbox-info-panel {
+                    position: absolute;
+                    right: 0;
+                    top: 0;
+                    width: 300px;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.85);
+                    backdrop-filter: blur(10px);
+                    padding: 20px;
+                    border-left: 1px solid rgba(255,255,255,0.1);
+                    transform: translateX(100%);
+                    transition: transform 0.3s ease;
+                    overflow-y: auto;
+                    color: white;
+                    z-index: 2005;
+                }
+                .lightbox-info-panel.visible {
+                    transform: translateX(0);
+                }
+                .lightbox-info-panel h3 {
+                    margin-top: 0;
+                    font-size: 1.2rem;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                    padding-bottom: 10px;
+                    margin-bottom: 15px;
+                }
+                .info-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                    font-size: 0.9rem;
+                }
+                .info-label {
+                    color: rgba(255,255,255,0.6);
+                }
+                .info-value {
+                    text-align: right;
+                    font-weight: 500;
+                }
+                .lightbox-info-toggle {
+                    position: absolute;
+                    top: 20px;
+                    right: 60px; /* Left of close button */
+                    background: rgba(255, 255, 255, 0.1);
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    padding: 10px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: background 0.2s;
+                    z-index: 2002;
+                }
+                .lightbox-info-toggle:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                }
+
                 .lightbox-loader {
                     position: absolute;
                     top: 50%;
@@ -147,6 +207,25 @@ class SimpleLightbox {
                     animation: spin 1s linear infinite;
                 }
                 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                @media (max-width: 900px) {
+                    .lightbox-info-panel {
+                        width: 100%;
+                        height: 40%;
+                        top: auto;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        border-left: none;
+                        border-top: 1px solid rgba(255,255,255,0.1);
+                        transform: translateY(100%);
+                    }
+                    .lightbox-info-panel.visible {
+                        transform: translateY(0);
+                    }
+                    .lightbox-media-container img, .lightbox-media-container video {
+                         /* Make space for panel when visible? Or just overlay */
+                    }
+                }
                 @media (max-width: 600px) {
                     .lightbox-prev, .lightbox-next { bottom: 20px; top: auto; }
                     .lightbox-prev { left: 20px; }
@@ -163,6 +242,33 @@ class SimpleLightbox {
         this.modal = document.getElementById('lightbox-modal');
         this.container = this.modal.querySelector('.lightbox-media-container');
         this.loader = this.modal.querySelector('.lightbox-loader');
+
+        // Add info elements if missing
+        if (!this.modal.querySelector('.lightbox-info-panel')) {
+            const panel = document.createElement('div');
+            panel.className = 'lightbox-info-panel';
+            panel.innerHTML = `
+                <h3>Informacije o sliki</h3>
+                <div class="info-content"></div>
+            `;
+            this.modal.querySelector('.lightbox-content').appendChild(panel);
+
+            const toggle = document.createElement('button');
+            toggle.className = 'lightbox-info-toggle';
+            toggle.innerHTML = '<span class="material-icons">info</span>';
+            toggle.ariaLabel = 'Toggle Info';
+            this.modal.querySelector('.lightbox-content').appendChild(toggle);
+
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                panel.classList.toggle('visible');
+            });
+
+            // Close panel when clicking outside? Overlay handles close all.
+        }
+
+        this.infoPanel = this.modal.querySelector('.lightbox-info-panel');
+        this.infoContent = this.modal.querySelector('.info-content');
     }
 
     bindEvents() {
@@ -219,6 +325,9 @@ class SimpleLightbox {
         const src = trigger.dataset.original;
         const type = trigger.dataset.type || 'image';
         const title = trigger.dataset.title || '';
+
+        // Populate Info Panel
+        this.updateInfoPanel(trigger.dataset);
 
         this.loader.style.display = 'block';
         this.container.innerHTML = ''; // Clear previous
@@ -278,6 +387,61 @@ class SimpleLightbox {
         if (currentIndex > 0) {
             this.open(triggers[currentIndex - 1]);
         }
+    }
+
+    updateInfoPanel(data) {
+        let html = '';
+
+        // Basic Info
+        if (data.filename) html += this.renderRow('Ime datoteke', data.filename);
+        if (data.dims) html += this.renderRow('Dimenzije', data.dims);
+        if (data.size) html += this.renderRow('Velikost', data.size);
+        if (data.mime) html += this.renderRow('Tip', data.mime);
+
+        // EXIF
+        if (data.exif) {
+            try {
+                const exif = JSON.parse(data.exif);
+
+                // Date Taken
+                if (exif.taken_at) {
+                    const date = new Date(exif.taken_at * 1000);
+                    html += this.renderRow('Datum nastanka', date.toLocaleString('sl-SI'));
+                }
+
+                // Camera
+                if (exif.make || exif.model) {
+                    const cam = [exif.make, exif.model].filter(Boolean).join(' ');
+                    html += this.renderRow('Kamera', cam);
+                }
+
+                // Lens
+                if (exif.lens) html += this.renderRow('Objektiv', exif.lens);
+
+                // Settings
+                if (exif.iso) html += this.renderRow('ISO', exif.iso);
+                if (exif.aperture) html += this.renderRow('Zaslonka', 'f/' + exif.aperture);
+                if (exif.shutter) html += this.renderRow('Čas osvetlitve', exif.shutter);
+                if (exif.focal) html += this.renderRow('Goriščnica', exif.focal + ' mm');
+
+            } catch (e) {
+                console.error("EXIF parse error", e);
+            }
+        }
+
+        // Link to view page
+        html += `<div style="margin-top:20px;text-align:center;"><a href="/view.php?id=${data.id}" class="button small">Poglej podrobno</a></div>`;
+
+        this.infoContent.innerHTML = html;
+    }
+
+    renderRow(label, value) {
+        return `
+            <div class="info-row">
+                <span class="info-label">${label}:</span>
+                <span class="info-value">${value}</span>
+            </div>
+        `;
     }
 }
 
