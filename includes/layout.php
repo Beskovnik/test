@@ -64,8 +64,8 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
 
     // Error Toast
     if (!empty($errors)) {
-        echo '<div class="toast show" id="error-toast" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">';
-        echo '<div class="toast-body error-toast" style="padding: 1rem 1.5rem; border-radius: 1rem; background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--border); color: #fff;">';
+        echo '<div class="toast show toast-error" id="error-toast">';
+        echo '<div style="width:100%;">';
         echo '<div style="font-weight:bold;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;">Setup Issue <button style="background:none;border:none;color:inherit;cursor:pointer;" onclick="document.getElementById(\'error-toast\').remove()">×</button></div>';
         echo '<ul style="padding-left:1rem;margin:0;">';
         foreach ($errors as $error) {
