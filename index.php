@@ -141,12 +141,24 @@ foreach ($grouped as $label => $items) {
     echo '<div class="grid">';
     foreach ($items as $item) {
         $id = (int)$item['id'];
-        $original = '/' . $item['file_path'];
 
-        if ($item['type'] === 'image') {
-            $thumb = '/thumb.php?src=' . urlencode($original) . '&w=420&h=420&fit=cover';
+        // --- STRICT OPTIMIZATION LOGIC ---
+        // 1. Thumb (preferred)
+        // 2. Optimized (fallback)
+        // 3. Original (last resort)
+
+        $thumbUrl = '';
+        if (!empty($item['thumb_path'])) {
+            $thumbUrl = '/' . $item['thumb_path'];
+        } elseif (!empty($item['optimized_path'])) {
+            $thumbUrl = '/' . $item['optimized_path'];
         } else {
-            $thumb = '/' . ($item['thumb_path'] ?: $item['file_path']);
+            $thumbUrl = '/' . $item['file_path'];
+        }
+
+        // Fallback to placeholder if path is empty (shouldn't happen)
+        if (empty($thumbUrl) || $thumbUrl === '/') {
+            $thumbUrl = $fallback;
         }
 
         $title = $id . ' ' . ($item['type'] === 'video' ? 'video' : 'slika');
@@ -159,11 +171,13 @@ foreach ($grouped as $label => $items) {
         $likes = $item['like_count'] ?? 0;
         $comments = $item['comment_count'] ?? 0;
 
-        // Robust handler: Try original if thumb fails (images only), then placeholder
+        // JS Fallback: If thumb fails, try to load original (but lazily via JS onerror)
+        $original = '/' . $item['file_path'];
         $jsOriginal = json_encode($original);
 
         $onError = "this.onerror=null;this.src=$jsFallback";
         if ($item['type'] === 'image') {
+            // For images, if thumb fails, try original, then placeholder
             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
         }
 
@@ -175,7 +189,7 @@ foreach ($grouped as $label => $items) {
 
         // Image Wrapper
         echo '<div class="card-image-wrapper">';
-            echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" fetchpriority="' . $fetchPriority . '" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
+            echo '<img src="' . htmlspecialchars($thumbUrl) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" fetchpriority="' . $fetchPriority . '" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
 
             // Badges
             echo '<div class="card-badges">';
