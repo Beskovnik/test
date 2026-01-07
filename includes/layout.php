@@ -92,7 +92,8 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
         return '<a class="nav-link ' . $class . '" href="' . $href . '">' . $label . '</a>';
     };
 
-    echo $makeLink('feed', '/index.php', 'Moje Slike');
+    // FIX: Explicitly filter images for "Moje Slike"
+    echo $makeLink('feed', '/index.php?type=image&nav=feed', 'Moje Slike');
     echo $makeLink('videos', '/index.php?type=video&nav=videos', 'Moji Videi');
     echo $makeLink('public', '/index.php?view=public&nav=public', 'Javno');
     echo $makeLink('weather', '/weather.php', 'Vreme');
