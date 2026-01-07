@@ -47,12 +47,12 @@ if ($search !== '') {
 }
 
 // Sorting logic
-$orderBy = 'created_at DESC'; // default fallback
+$orderBy = 'posts.created_at DESC'; // default fallback
 if ($sortMode === 'taken_desc') {
     // coalesce to created_at if photo_taken_at is null
-    $orderBy = 'COALESCE(photo_taken_at, created_at) DESC, created_at DESC';
+    $orderBy = 'COALESCE(posts.photo_taken_at, posts.created_at) DESC, posts.created_at DESC';
 } elseif ($sortMode === 'upload_desc') {
-    $orderBy = 'created_at DESC';
+    $orderBy = 'posts.created_at DESC';
 }
 
 $whereClause = implode(' AND ', $where);
