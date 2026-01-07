@@ -46,7 +46,8 @@ if ($search !== '') {
 
 $whereClause = implode(' AND ', $where);
 $sql = "SELECT posts.*, users.username,
-        (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) as like_count
+        (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) as like_count,
+        (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count
         FROM posts LEFT JOIN users ON posts.user_id = users.id
         WHERE {$whereClause}
         ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
@@ -62,13 +63,27 @@ $posts = $stmt->fetchAll();
 
 // Grouping Logic
 function time_group_label(int $timestamp): string {
-    $diff = (new DateTimeImmutable('now'))->diff((new DateTimeImmutable())->setTimestamp($timestamp));
-    if ($diff->days === 0) return 'Danes';
-    if ($diff->days === 1) return 'Včeraj';
-    if ($diff->days <= 7) return 'Ta teden';
-    if ($diff->days <= 30) return 'Ta mesec';
-    if ($diff->y >= 1) return ($diff->y) . ' let nazaj';
-    return 'Prej';
+    $date = (new DateTimeImmutable())->setTimestamp($timestamp);
+    $now = new DateTimeImmutable('now');
+
+    // Compare dates (midnight to midnight)
+    $dateYMD = $date->format('Y-m-d');
+    $todayYMD = $now->format('Y-m-d');
+    $yesterdayYMD = $now->modify('-1 day')->format('Y-m-d');
+
+    if ($dateYMD === $todayYMD) return 'Danes';
+    if ($dateYMD === $yesterdayYMD) return 'Včeraj';
+
+    return $date->format('d. m. Y');
+}
+
+// Relative time helper for card meta
+function time_ago(int $timestamp): string {
+    $diff = time() - $timestamp;
+    if ($diff < 60) return 'ravnokar';
+    if ($diff < 3600) return floor($diff / 60) . ' min';
+    if ($diff < 86400) return floor($diff / 3600) . ' h';
+    return date('d.m.', $timestamp);
 }
 
 $grouped = [];
@@ -78,6 +93,32 @@ foreach ($posts as $post) {
 
 // Render Header
 render_header('Galerija' . ($viewMode === 'public' ? ' (Javno)' : ''), $user, $typeFilter === 'video' ? 'videos' : 'feed');
+
+// Inject Gallery Assets
+echo '<link rel="stylesheet" href="/assets/gallery.css">';
+
+// Gallery Toolbar (Multi-select)
+echo '
+<div class="gallery-toolbar" id="gallery-toolbar">
+    <div style="display:flex;align-items:center;gap:1rem;">
+        <span style="font-weight:bold;color:white;" id="selected-count">Izbrano: 0</span>
+    </div>
+    <div class="actions">
+        <button class="button small" id="bulk-share-btn" style="background:var(--accent);color:white;border:none;">
+            <span class="material-icons" style="font-size:16px;vertical-align:middle;margin-right:4px;">share</span> Deli javno
+        </button>
+        <button class="button small secondary" id="cancel-selection" style="background:rgba(255,255,255,0.1);color:white;border:none;">Prekliči</button>
+    </div>
+</div>
+';
+
+// Top Controls (Select Mode Toggle) - Injected below standard header controls via layout, but we need it here in content
+echo '<div style="margin: 1rem 0; display:flex; justify-content:flex-end;">';
+echo '<button class="button small secondary" id="toggle-select-mode" style="background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;gap:6px;">
+        <span class="material-icons" style="font-size:16px">checklist</span> Izberi več
+      </button>';
+echo '</div>';
+
 
 if (!$posts && $page === 1) {
     echo '<div style="padding:4rem;text-align:center;color:var(--muted);font-size:1.2rem;">Ni objav. Naložite prve fotografije ali videe!</div>';
@@ -89,7 +130,7 @@ $jsFallback = json_encode($fallback);
 
 foreach ($grouped as $label => $items) {
     echo '<section class="time-group">';
-    echo '<h2 style="padding: 1rem 2rem; color: var(--muted); font-size: 1.1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem;">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
+    echo '<h2 style="padding: 1rem 0; color: var(--muted); font-size: 1.1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
     echo '<div class="grid">';
     foreach ($items as $item) {
         $id = (int)$item['id'];
@@ -102,26 +143,59 @@ foreach ($grouped as $label => $items) {
         }
 
         $title = $id . ' ' . ($item['type'] === 'video' ? 'video' : 'slika');
-        $badge = $item['type'] === 'video' ? '<span class="badge">Video</span>' : '';
+        $username = $item['username'] ?? 'neznano';
+        $timeAgo = time_ago((int)$item['created_at']);
+        $isPublic = ($item['visibility'] === 'public' || $item['is_public']);
+
+        // Metadata
+        $views = $item['views'] ?? 0;
+        $likes = $item['like_count'] ?? 0;
+        $comments = $item['comment_count'] ?? 0;
 
         // Robust handler: Try original if thumb fails (images only), then placeholder
         $jsOriginal = json_encode($original);
 
         $onError = "this.onerror=null;this.src=$jsFallback";
         if ($item['type'] === 'image') {
-            // If thumb.php fails, try original
             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
         }
 
-        echo '<a href="/view.php?id=' . $id . '" class="card" data-id="' . $id . '">';
-        echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" width="420" height="420" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
-        echo $badge;
-        echo '<div class="card-meta">';
-        echo '<h3>' . htmlspecialchars($title) . '</h3>';
-        if (!empty($item['username'])) {
-            echo '<span>' . htmlspecialchars($item['username']) . '</span>';
-        }
-        echo '</div>';
+        echo '<a href="/view.php?id=' . $id . '" class="gallery-card" data-id="' . $id . '">';
+
+        // Image Wrapper
+        echo '<div class="card-image-wrapper">';
+            echo '<img src="' . htmlspecialchars($thumb) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
+
+            // Badges
+            echo '<div class="card-badges">';
+            if ($item['type'] === 'video') {
+                echo '<span class="card-badge"><span class="material-icons" style="font-size:12px">play_arrow</span> Video</span>';
+            }
+            if ($isPublic) {
+                echo '<span class="card-badge public"><span class="material-icons" style="font-size:12px">public</span> Javno</span>';
+            }
+            echo '</div>';
+
+            // Select Indicator
+            echo '<div class="card-select-overlay">';
+            echo '<div class="select-indicator"></div>';
+            echo '</div>';
+
+            // Hover Overlay
+            echo '<div class="card-overlay">';
+                echo '<h3 class="card-title">' . htmlspecialchars($title) . '</h3>';
+                echo '<div class="card-subtitle">' . htmlspecialchars($username) . '</div>';
+
+                echo '<div class="card-meta">';
+                    echo '<span class="meta-item"><span class="material-icons">schedule</span> ' . $timeAgo . '</span>';
+                    if ($likes > 0) echo '<span class="meta-item"><span class="material-icons">favorite</span> ' . $likes . '</span>';
+                    if ($comments > 0) echo '<span class="meta-item"><span class="material-icons">chat_bubble</span> ' . $comments . '</span>';
+                    if ($views > 0) echo '<span class="meta-item"><span class="material-icons">visibility</span> ' . $views . '</span>';
+                echo '</div>';
+            echo '</div>'; // end overlay
+
+        echo '</div>'; // end wrapper
+
         echo '</a>';
     }
     echo '</div></section>';
@@ -134,5 +208,7 @@ if (count($posts) > 0) {
 } else {
     echo '<div class="no-more-posts" style="text-align:center;padding:2rem;color:var(--muted);">Ni več objav.</div>';
 }
+
+echo '<script src="/assets/gallery.js"></script>';
 
 render_footer();
