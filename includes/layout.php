@@ -22,6 +22,14 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
     // NEW THEME
     echo '<link rel="stylesheet" href="/assets/css/theme.css">';
 
+    // Dynamic Theme Color Injection
+    if (class_exists('App\Settings') && isset($pdo)) {
+        $accent = Settings::get($pdo, 'accent_color', '#ffb84d');
+        if ($accent) {
+            echo '<style>:root { --accent: ' . htmlspecialchars($accent, ENT_QUOTES, 'UTF-8') . '; }</style>';
+        }
+    }
+
     // Icons
     echo '<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">';
 
@@ -87,7 +95,8 @@ function render_header(string $title, ?array $user, string $active = 'feed'): vo
 
     // Top Actions
     echo '<div style="display:flex;align-items:center;gap:1rem;">';
-    echo '<a class="button" href="/upload.php"><span class="material-icons">cloud_upload</span> <span style="display:none; @media(min-width:600px){display:inline;}">Naloži</span></a>';
+    // Pill Gradient Button
+    echo '<a class="button" style="border-radius:999px; background:linear-gradient(135deg, var(--accent) 0%, #aa66cc 100%); border:none; color:#fff; font-weight:600; padding: 0.6rem 1.4rem;" href="/upload.php"><span class="material-icons" style="font-size:1.1em; margin-right:6px; vertical-align:middle;">cloud_upload</span><span class="desktop-only" style="vertical-align:middle;">Naloži</span></a>';
 
     if ($user) {
         echo '<div style="font-size:0.9rem; color:var(--text-muted);">';
