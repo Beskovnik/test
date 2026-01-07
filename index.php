@@ -4,6 +4,7 @@ require __DIR__ . '/includes/layout.php'; // Required for render_header
 
 use App\Auth;
 use App\Database;
+use App\Settings;
 
 $user = Auth::user();
 $pdo = Database::connect();
@@ -135,6 +136,9 @@ $jsFallback = json_encode($fallback);
 // Optimization: Global index for fetchpriority
 $globalIndex = 0;
 
+// Fetch configured thumb width for srcset
+$thumbW = (int)Settings::get($pdo, 'thumb_width', '480');
+
 foreach ($grouped as $label => $items) {
     echo '<section class="time-group">';
     echo '<h2 style="padding: 1rem 0; color: var(--muted); font-size: 1.1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2>';
@@ -181,6 +185,26 @@ foreach ($grouped as $label => $items) {
             $onError = "if(this.dataset.retry){this.onerror=null;this.src=$jsFallback}else{this.dataset.retry=true;this.src=$jsOriginal}";
         }
 
+        // Responsive Srcset
+        $srcsetAttr = '';
+        $sizesAttr = '';
+        if ($item['type'] === 'image') {
+             $srcs = [];
+             // Assuming thumb is ~480w and optimized is ~1920w based on upload logic
+             if (!empty($item['thumb_path'])) {
+                 $srcs[] = '/' . $item['thumb_path'] . ' ' . $thumbW . 'w';
+             }
+             if (!empty($item['optimized_path'])) {
+                 $srcs[] = '/' . $item['optimized_path'] . ' 1920w';
+             }
+
+             if (count($srcs) > 0) {
+                 $srcsetAttr = 'srcset="' . implode(', ', $srcs) . '"';
+                 // Grid items are roughly 300px-500px wide depending on screen
+                 $sizesAttr = 'sizes="(max-width: 600px) 100vw, (max-width: 1200px) 50vw, 33vw"';
+             }
+        }
+
         // Optimization: Priority for first few items
         $fetchPriority = ($globalIndex < 4 && $page === 1) ? 'high' : 'low';
         $globalIndex++;
@@ -189,7 +213,7 @@ foreach ($grouped as $label => $items) {
 
         // Image Wrapper
         echo '<div class="card-image-wrapper">';
-            echo '<img src="' . htmlspecialchars($thumbUrl) . '" alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" fetchpriority="' . $fetchPriority . '" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
+            echo '<img src="' . htmlspecialchars($thumbUrl) . '" ' . $srcsetAttr . ' ' . $sizesAttr . ' alt="' . htmlspecialchars($title) . '" loading="lazy" decoding="async" fetchpriority="' . $fetchPriority . '" style="object-fit: cover;" onerror="' . htmlspecialchars($onError, ENT_QUOTES) . '">';
 
             // Badges
             echo '<div class="card-badges">';
