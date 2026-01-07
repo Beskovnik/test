@@ -30,9 +30,17 @@ if (!$post) {
 
 // ACCESS CONTROL
 $isOwner = $user && ($post['user_id'] == $user['id'] || $post['owner_user_id'] == $user['id']);
-$isPublic = ($post['visibility'] ?? 'private') === 'public';
+$isPublic = ($post['visibility'] ?? 'private') === 'public' || ($post['is_public'] ?? 0) == 1;
 // Check if accessed via valid share token containing this item
 $hasAccess = $isOwner || $isPublic;
+
+// Prepare Public URL if it exists
+$publicLink = '';
+if (!empty($post['public_token']) && !empty($post['is_public'])) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    $publicLink = $protocol . $host . '/public.php?t=' . $post['public_token'];
+}
 
 if (!$hasAccess && !$user) {
     // If user is not logged in and no access, redirect to login
@@ -102,24 +110,41 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
                 <span class="like-label"><?php echo $liked ? 'Všečkano' : 'Všečkaj'; ?></span>
                 <span class="like-count" style="margin-left:auto; background:rgba(255,255,255,0.1); padding:0.1rem 0.5rem; border-radius:1rem;"><?php echo $likeCount; ?></span>
             </button>
-            <button class="button ghost js-share-btn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
-            <?php if ($user && ($user['role'] === 'admin' || $user['id'] === $post['user_id'])): ?>
-                <button class="button danger js-delete-btn" data-id="<?php echo $post['id']; ?>">Izbriši 🗑️</button>
-            <?php endif; ?>
 
             <?php if ($isOwner): ?>
-                <div style="flex:1; display:flex; gap:0.5rem;">
-                     <!-- Visibility Toggle -->
-                    <select id="visibilitySelect" data-id="<?php echo $post['id']; ?>" class="button ghost" style="flex:1; appearance:none; padding-right:1rem; text-align:center;">
-                        <option value="private" <?php echo ($post['visibility'] === 'private') ? 'selected' : ''; ?>>🔒 Zasebno</option>
-                        <option value="public" <?php echo ($post['visibility'] === 'public') ? 'selected' : ''; ?>>🌍 Javno</option>
+                <div style="width:100%; display:flex; flex-direction:column; gap:1rem; margin-top:0.5rem; background:rgba(255,255,255,0.03); padding:1rem; border-radius:1rem; border:1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0; font-size:1rem;">Dostopnost</h3>
+                        <span id="statusBadge" class="badge <?php echo $isPublic ? 'success' : ''; ?>" style="font-size:0.8rem; padding:0.3rem 0.6rem;">
+                            <?php echo $isPublic ? 'Javno' : 'Zasebno'; ?>
+                        </span>
+                    </div>
+
+                    <!-- Visibility Toggle (Legacy/Sync) -->
+                    <select id="visibilitySelect" data-id="<?php echo $post['id']; ?>" class="button ghost small" style="width:100%; text-align:left;">
+                        <option value="private" <?php echo ($post['visibility'] === 'private') ? 'selected' : ''; ?>>🔒 Zasebno (Samo jaz)</option>
+                        <option value="public" <?php echo ($post['visibility'] === 'public') ? 'selected' : ''; ?>>🌍 Javno (Galerija)</option>
                     </select>
 
-                    <button class="button ghost js-share-btn" data-url="<?php echo $shareUrl; ?>" style="flex:1;">
-                        Deli <span class="material-icons" style="font-size:1rem;margin-left:0.5rem;">share</span>
+                    <button id="publicLinkBtn" class="button primary" style="width:100%;">
+                        Generiraj javni URL link 🔗
                     </button>
+
+                    <div id="publicLinkContainer" style="display:<?php echo empty($publicLink) ? 'none' : 'block'; ?>; margin-top:0.5rem;">
+                        <label style="font-size:0.8rem; color:var(--muted); display:block; margin-bottom:0.25rem;">Javni URL:</label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="text" readonly value="<?php echo htmlspecialchars($publicLink); ?>" style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:var(--text); padding:0.5rem; border-radius:0.5rem; font-size:0.9rem;">
+                            <button id="copyPublicLinkBtn" class="button icon-only" title="Kopiraj"><span class="material-icons">content_copy</span></button>
+                        </div>
+                    </div>
+
+                    <button class="button danger small icon-only js-delete-btn" data-id="<?php echo $post['id']; ?>" title="Izbriši" style="align-self: flex-end;"><span class="material-icons">delete</span></button>
                 </div>
-                <button class="button danger icon-only js-delete-btn" data-id="<?php echo $post['id']; ?>" title="Izbriši"><span class="material-icons">delete</span></button>
+            <?php else: ?>
+                 <button class="button ghost js-share-btn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
+                 <?php if ($user && $user['role'] === 'admin'): ?>
+                    <button class="button danger js-delete-btn" data-id="<?php echo $post['id']; ?>">Izbriši 🗑️</button>
+                 <?php endif; ?>
             <?php endif; ?>
         </div>
 
