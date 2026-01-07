@@ -1,5 +1,5 @@
 /**
- * Gallery Specific Styles
+ * Gallery Specific Styles - Premium Glass Overhaul
  * Scope: Content area of index.php (Grid View)
  */
 
@@ -8,58 +8,70 @@
     display: none; /* Hidden by default */
     align-items: center;
     justify-content: space-between;
-    background: rgba(20, 20, 30, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* Glassmorphism */
+    background: var(--panel-bg);
+    backdrop-filter: blur(var(--panel-blur));
+    -webkit-backdrop-filter: blur(var(--panel-blur));
+    border-bottom: 1px solid var(--panel-border);
+
     padding: 1rem 2rem;
     position: sticky;
-    top: 0; /* Adjust if header is sticky, usually header is ~60px */
-    z-index: 90; /* Below header (100) but above content */
-    margin: -1rem -1rem 1rem -1rem; /* Negative margin to pull to edges of main */
-    border-radius: 0 0 12px 12px;
+    top: 0;
+    z-index: 90;
+    margin: -1rem -1rem 2rem -1rem;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .gallery-toolbar.active {
     display: flex;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 .gallery-toolbar .actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 1rem;
 }
 
 /* Card Container & Layout */
 .gallery-card {
     position: relative;
-    display: block; /* anchor tag */
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
+    display: block;
+
+    /* Premium Card Base */
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-card); /* 24px */
     overflow: hidden;
+
     text-decoration: none;
     color: inherit;
-    transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                box-shadow 0.2s ease,
-                border-color 0.2s ease;
+    transition: var(--transition-slow);
     cursor: pointer;
 }
 
 /* Hover Animation */
 .gallery-card:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
-    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--glow-box);
+    border-color: rgba(255, 184, 77, 0.3); /* Amber border hint */
     z-index: 2;
 }
 
-/* Image Wrapper (Aspect Ratio) */
+/* Image Wrapper */
 .card-image-wrapper {
     position: relative;
     width: 100%;
-    padding-top: 75%; /* 4:3 Aspect Ratio default, or 66.6% for 3:2 */
-    background: rgba(0, 0, 0, 0.2); /* Skeleton placeholder color */
+    padding-top: 75%; /* 4:3 Aspect Ratio */
+    background: rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    /* Radius handled by parent, but ensure content clips */
 }
 
 .card-image-wrapper img {
@@ -69,8 +81,11 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block;
-    transition: filter 0.2s ease;
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.gallery-card:hover img {
+    transform: scale(1.1);
 }
 
 /* Hover Overlay */
@@ -79,12 +94,15 @@
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 2rem 1rem 1rem;
-    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+    padding: 2rem 1.5rem 1.5rem;
+    background: linear-gradient(to top, rgba(15, 12, 21, 0.95) 0%, rgba(15, 12, 21, 0.6) 60%, transparent 100%);
     opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    pointer-events: none; /* Let clicks pass through unless interactive */
+    transform: translateY(20px);
+    transition: var(--transition-slow);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
 }
 
 .gallery-card:hover .card-overlay {
@@ -92,109 +110,104 @@
     transform: translateY(0);
 }
 
-.gallery-card:hover img {
-    /* Optional: Slight darken on hover to make text pop */
-    filter: brightness(0.9);
-}
-
-/* Card Content (Typography) */
+/* Typography */
 .card-title {
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    margin: 0;
-    color: white;
+    margin: 0 0 0.25rem;
+    color: var(--text-main);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .card-subtitle {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
-    margin-top: 2px;
+    font-size: 0.9rem;
+    color: var(--accent); /* Amber text for user */
+    margin-bottom: 0.5rem;
+    font-weight: 500;
 }
 
 .card-meta {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
 }
 
 .meta-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
 }
 
-.meta-item i, .meta-item span.material-icons {
-    font-size: 14px;
+.meta-item span.material-icons {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.5);
 }
 
-/* Select Mode Checkbox */
+/* Selection Logic */
 .card-select-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    display: none; /* Hidden unless selected or selecting */
-    align-items: center;
-    justify-content: center;
+    background: rgba(15, 12, 21, 0.4); /* Darker dim */
+    backdrop-filter: blur(2px);
+    display: none;
     z-index: 5;
+    transition: var(--transition-slow);
 }
 
+.gallery-card.selected .card-select-overlay {
+    /* Show when selected to dim image slightly */
+    display: block;
+}
+
+/* Checkbox Indicator */
 .select-indicator {
     position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 24px;
-    height: 24px;
+    top: 15px;
+    right: 15px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    background: rgba(0, 0, 0, 0.3);
-    display: flex;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    background: rgba(0, 0, 0, 0.4);
+    display: flex; /* Always potentially visible in layout, toggled by CSS class usually */
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: var(--transition-slow);
+    z-index: 10;
+    opacity: 0; /* Hidden by default until hover or select mode */
+    transform: scale(0.8);
 }
 
-/* When Select Mode is Active (Class on body or container) */
-.select-mode .select-indicator {
-    display: flex; /* Always show indicator in select mode */
-}
-
-/* Selected State */
-.gallery-card.selected .card-select-overlay {
-    /* Optional: darken the whole card to indicate selection */
-    /* display: flex; if we want center check */
+/* Show indicator on hover or if select mode is on */
+.gallery-card:hover .select-indicator,
+.select-mode .select-indicator,
+.gallery-card.selected .select-indicator {
+    opacity: 1;
+    transform: scale(1);
 }
 
 .gallery-card.selected .select-indicator {
-    background: var(--accent, #4b8bff);
-    border-color: var(--accent, #4b8bff);
-    color: white;
-}
-
-.gallery-card.selected {
-    border-color: var(--accent, #4b8bff);
-    box-shadow: 0 0 0 2px rgba(75, 139, 255, 0.3);
-    transform: scale(0.98); /* Slight press effect */
-}
-
-.gallery-card.selected:hover {
-    transform: scale(0.98); /* Disable hover lift when selected */
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 15px var(--accent-glow);
+    color: #1a0b1c; /* Dark checkmark */
 }
 
 .select-indicator::after {
     content: "✓";
-    font-size: 14px;
+    font-size: 16px;
+    font-weight: 800;
     opacity: 0;
     transform: scale(0.5);
-    transition: all 0.2s ease;
+    transition: var(--transition-slow);
 }
 
 .gallery-card.selected .select-indicator::after {
@@ -202,107 +215,79 @@
     transform: scale(1);
 }
 
+/* Selected Card State */
+.gallery-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 10px 40px rgba(0,0,0,0.5);
+    transform: scale(0.96);
+}
+
 /* Badges */
 .card-badges {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 15px;
+    left: 15px;
     display: flex;
-    gap: 5px;
+    gap: 8px;
     z-index: 3;
 }
 
 .card-badge {
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 0.7rem;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px; /* Pill */
+    font-size: 0.75rem;
     font-weight: 600;
-    color: white;
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 .card-badge.public {
-    background: rgba(75, 139, 255, 0.8); /* Accent color */
+    background: rgba(255, 184, 77, 0.2);
+    border-color: rgba(255, 184, 77, 0.4);
+    color: var(--accent);
 }
 
-/* Results Modal (Bulk Share) */
+/* Modal (Bulk Share) */
 .bulk-share-results {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #1a1a24;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-    width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
-    border-radius: 16px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    overflow: hidden;
+    /* Glass Modal */
+    background: rgba(25, 20, 30, 0.95);
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 25px 80px rgba(0,0,0,0.7);
+    border-radius: 24px;
+    color: var(--text-main);
 }
 
 .bulk-share-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    border-bottom: 1px solid var(--panel-border);
+    padding: 2rem;
 }
-.bulk-share-body {
-    padding: 1.5rem;
-    overflow-y: auto;
-}
-.bulk-share-footer {
-    padding: 1rem 1.5rem;
-    background: rgba(0,0,0,0.2);
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
+
+.bulk-share-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--accent);
 }
 
 .share-link-row {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    padding: 0.75rem;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid var(--panel-border);
 }
+
 .share-link-input {
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    flex: 1;
-    font-family: monospace;
-    font-size: 0.9rem;
+    color: var(--text-main);
+    font-family: 'Monaco', 'Consolas', monospace;
 }
 
-/* Button variants if not in app.css */
-.btn-secondary {
-    background: rgba(255,255,255,0.1);
-    color: white;
-}
-.btn-secondary:hover {
-    background: rgba(255,255,255,0.2);
-}
-
-/* Backdrop for modal */
 .modal-backdrop {
-    position: fixed;
-    top:0; left:0; right:0; bottom:0;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(4px);
-    z-index: 999;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
 }
-
-/* Utility to hide elements */
-.hidden { display: none !important; }
