@@ -64,10 +64,9 @@ class Media
                 }
 
                 $imagick->setImageCompressionQuality($quality);
-                $imagick->stripImage(); // Remove metadata
-
-                // Resize (best fit)
-                $imagick->resizeImage($maxWidth, $maxHeight, Imagick::FILTER_LANCZOS, 1, true);
+                // thumbnailImage automatically strips profiles and is faster
+                // Parameters: columns, rows, bestfit, fill
+                $imagick->thumbnailImage($maxWidth, $maxHeight, true, true);
 
                 if ($ext === 'webp') {
                     $imagick->setImageFormat('webp');

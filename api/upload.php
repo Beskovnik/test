@@ -256,6 +256,10 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
     $dbOptimized = 'optimized/' . $optimizedName;
 
     try {
+        $thumbW = (int)Settings::get($pdo, 'thumb_width', '480');
+        $thumbH = (int)Settings::get($pdo, 'thumb_height', '480');
+        $thumbQuality = (int)Settings::get($pdo, 'thumb_quality', '80');
+
         if ($isImage) {
             $info = getimagesize($targetOriginal);
             if ($info) {
@@ -263,8 +267,8 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
                 $height = $info[1];
             }
 
-            // 1. Generate Thumb (480px) - Strict Requirement
-            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, 480, 480, 75);
+            // 1. Generate Thumb
+            $thumbSuccess = Media::generateResized($targetOriginal, $targetThumb, $thumbW, $thumbH, $thumbQuality);
 
             // 2. Generate Optimized (1920px) - Strict Requirement
             // Quality 82 for WEBP/JPEG
@@ -274,8 +278,8 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
             // Video: Only Thumbs (No transcoding of video file itself)
             // But we need a thumb for the grid
 
-            // Try generate thumb (480px)
-            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, 480);
+            // Try generate thumb
+            $thumbSuccess = Media::generateVideoThumb($targetOriginal, $targetThumb, $thumbW);
 
             // No optimized video transcoding (as requested)
             // So optimized path maps to original? Or null?

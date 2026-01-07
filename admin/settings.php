@@ -40,6 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Settings::set($pdo, 'max_video_gb', $maxVideoGb);
     Settings::set($pdo, 'max_files_per_upload', (string)$maxFiles);
 
+    // Thumb Settings
+    Settings::set($pdo, 'thumb_width', (string)(int)$_POST['thumb_width']);
+    Settings::set($pdo, 'thumb_height', (string)(int)$_POST['thumb_height']);
+    Settings::set($pdo, 'thumb_quality', (string)(int)$_POST['thumb_quality']);
+
     // UI Settings
     Settings::set($pdo, 'accent_color', $_POST['accent_color']);
     Settings::set($pdo, 'ui_scale', $uiScale);
@@ -109,6 +114,22 @@ render_header('Nastavitve', $user, 'settings');
             <div>
                 <label>Max Datotek naenkrat</label>
                 <input type="number" max="100" name="max_files_per_upload" value="<?php echo $maxFiles; ?>">
+            </div>
+        </div>
+
+        <h3>Optimizacija Slik (Thumbnails)</h3>
+        <div class="grid-2">
+            <div>
+                <label>Thumb Širina (px)</label>
+                <input type="number" name="thumb_width" value="<?php echo Settings::get($pdo, 'thumb_width', '480'); ?>">
+            </div>
+            <div>
+                <label>Thumb Višina (px)</label>
+                <input type="number" name="thumb_height" value="<?php echo Settings::get($pdo, 'thumb_height', '480'); ?>">
+            </div>
+            <div>
+                <label>Kakovost (%)</label>
+                <input type="number" min="10" max="100" name="thumb_quality" value="<?php echo Settings::get($pdo, 'thumb_quality', '80'); ?>">
             </div>
         </div>
 
