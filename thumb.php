@@ -1,7 +1,6 @@
 <?php
-require __DIR__ . '/app/Bootstrap.php'; // For autoloader and App\Media
-
-use App\Media;
+// Optimization: Check cache and serve static files BEFORE booting the framework
+// This significantly reduces TTFB for cached thumbnails by avoiding DB connection and Session start.
 
 // Basic configuration
 $thumbsDir = __DIR__ . '/thumbs';
@@ -19,7 +18,7 @@ if (!is_dir($thumbsDir)) {
 $src = $_GET['src'] ?? '';
 $w = (int)($_GET['w'] ?? 420);
 $h = (int)($_GET['h'] ?? 420);
-$fit = $_GET['fit'] ?? 'cover'; // Not fully implemented in App\Media yet, but we'll stick to logic
+$fit = $_GET['fit'] ?? 'cover';
 
 // Validate path
 // Security: Prevent directory traversal
@@ -27,9 +26,13 @@ $cleanSrc = str_replace(['..', '//'], '', ltrim($src, '/'));
 if (strpos($cleanSrc, 'uploads/') === 0) {
     $cleanSrc = substr($cleanSrc, 8); // Remove 'uploads/' prefix
 }
+
+// Use realpath to resolve strict location
+$realUploads = realpath($uploadsDir);
 $srcPath = realpath($uploadsDir . '/' . $cleanSrc);
 
-if (!$srcPath || strpos($srcPath, realpath($uploadsDir)) !== 0 || !file_exists($srcPath)) {
+// Strict Security Check
+if (!$srcPath || !$realUploads || strpos($srcPath, $realUploads) !== 0 || !file_exists($srcPath)) {
     header('HTTP/1.1 404 Not Found');
     die('Image not found or invalid path.');
 }
@@ -50,7 +53,7 @@ if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']
     exit;
 }
 
-// Check cache
+// Check cache - If hit, serve immediately without bootstrapping
 if (file_exists($cacheFile)) {
     $mime = mime_content_type($cacheFile);
     header('Content-Type: ' . $mime);
@@ -59,11 +62,11 @@ if (file_exists($cacheFile)) {
     exit;
 }
 
-// Use App\Media to generate logic
-// Note: App\Media::generateResized mainly does resizing/contain.
-// The complex 'cover' logic in old thumb.php is better.
-// We will reimplement it here cleanly or update App\Media.
-// For now, let's keep the specialized logic here but simplified.
+// ---------------------------------------------------------
+// CACHE MISS: Boot framework and generate thumbnail
+// ---------------------------------------------------------
+
+require __DIR__ . '/app/Bootstrap.php'; // For autoloader and App\Media logic if needed
 
 if (!extension_loaded('gd')) {
     header('HTTP/1.1 501 Not Implemented');
@@ -89,8 +92,6 @@ switch ($ext) {
 }
 
 if (!$sourceImage) {
-    // If it's a video file being requested (which shouldn't happen via src=... unless logic allows), fail.
-    // thumb.php is strictly for images.
     header('HTTP/1.1 415 Unsupported Media Type');
     die('Unsupported image type.');
 }
