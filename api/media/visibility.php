@@ -12,6 +12,15 @@ $pdo = Database::connect();
 
 $input = json_decode(file_get_contents('php://input'), true);
 
+if (!is_array($input)) {
+    Response::error('Invalid JSON input', 'INVALID_JSON');
+}
+
+$token = $input['csrf_token'] ?? '';
+if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+    Response::error('CSRF Error', 'CSRF_ERROR', 403);
+}
+
 $mediaId = $input['media_id'] ?? null;
 $visibility = $input['visibility'] ?? ''; // 'private' or 'public'
 

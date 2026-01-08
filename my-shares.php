@@ -147,11 +147,17 @@ function copyLink(token, type) {
 async function revokePublicLink(id) {
     if (!confirm('Ali želite preklicati javno povezavo? Medij bo postal zaseben.')) return;
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
     try {
         const res = await fetch('/api/media/visibility.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({media_id: id, visibility: 'private'})
+            body: JSON.stringify({
+                media_id: id,
+                visibility: 'private',
+                csrf_token: csrfToken
+            })
         });
         const data = await res.json();
         if (data.success) {
