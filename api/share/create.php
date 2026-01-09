@@ -7,6 +7,8 @@ use App\Response;
 header('Content-Type: application/json');
 
 $user = Auth::requireLogin();
+verify_csrf();
+
 $pdo = \App\Database::connect();
 
 $input = json_decode(file_get_contents('php://input'), true);

@@ -14,6 +14,8 @@ if (!$user) {
     Response::error('Dostop zavrnjen', 'UNAUTHORIZED', 401);
 }
 
+verify_csrf();
+
 $input = json_decode(file_get_contents('php://input'), true);
 $id = $input['id'] ?? null;
 
