@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 render_header('Prijava', null);
 ?>
 <div class="auth-page">
-    <form class="card form" method="post">
+    <form class="card form" method="post" id="loginForm">
         <?php echo csrf_field(); ?>
 
         <div class="auth-header">
@@ -77,13 +77,31 @@ render_header('Prijava', null);
                    <?php if (isset($error)) echo 'aria-invalid="true"'; ?>>
         </div>
 
-        <button class="button" type="submit" style="width: 100%; margin-top: 1rem;">Prijavi se</button>
+        <button class="button" type="submit" id="loginBtn" style="width: 100%; margin-top: 1rem;">Prijavi se</button>
 
         <p class="auth-footer">
             Nimaš računa? <a href="/register.php">Registracija</a>
         </p>
     </form>
 </div>
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    var btn = document.getElementById('loginBtn');
+    if (btn) {
+        // Prevent double submission if already disabled
+        if (btn.disabled) {
+            e.preventDefault();
+            return;
+        }
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.innerHTML = '<span class="material-icons" style="font-size: 1.2em; animation: spin 1s linear infinite; margin-right: 0.5rem;">refresh</span> Prijavljam...';
+    }
+});
+</script>
+<style>
+@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
 <?php
 render_footer();
 ?>
