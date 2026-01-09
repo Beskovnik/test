@@ -150,7 +150,10 @@
             try {
                 const res = await fetch('/api/view.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
                     body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
                 });
                 const data = await res.json();
@@ -170,7 +173,10 @@
                 try {
                     const res = await fetch('/api/like.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
                         body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
                     });
                     const data = await res.json();
@@ -196,7 +202,10 @@
                 try {
                     const res = await fetch('/api/media/visibility.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
                         body: JSON.stringify({
                             media_id: postId,
                             visibility: this.value,
@@ -230,7 +239,10 @@
                 try {
                     const res = await fetch('/api/media/generate_public_link.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
                         body: JSON.stringify({id: postId, csrf_token: csrfToken})
                     });
                     const data = await res.json();
@@ -419,7 +431,10 @@
              try {
                 const res = await fetch('/api/share/create.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
                     body: JSON.stringify({
                         title: title,
                         media_ids: mediaIds
