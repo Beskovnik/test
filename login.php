@@ -13,34 +13,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF check
     verify_csrf();
 
-    $username = trim(isset($_POST['identifier']) ? $_POST['identifier'] : '');
-    $password = isset($_POST['password']) ? $_POST['password'] : '';
+    // Rate Limiting: 5 attempts / 15 mins
+    $ipHash = md5($_SERVER['REMOTE_ADDR']);
+    $cacheDir = __DIR__ . '/_data/cache';
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0777, true);
+    }
+    $limitFile = $cacheDir . '/login_limit_' . $ipHash . '.json';
+    $limitData = file_exists($limitFile) ? json_decode(file_get_contents($limitFile), true) : ['count' => 0, 'expires' => 0];
 
-    $pdo = Database::connect();
-    $u = null;
+    // Reset if window expired
+    if (time() > $limitData['expires']) {
+        $limitData = ['count' => 0, 'expires' => time() + 900];
+    }
 
-    // Attempt to fetch user first
-    $stmt = $pdo->prepare('SELECT * FROM users WHERE (username = :u OR email = :u) AND active = 1');
-    $stmt->execute([':u' => $username]);
-    $u = $stmt->fetch();
-
-    if ($u && password_verify($password, $u['pass_hash'])) {
-
-        // Auto-promote first user to admin logic
-        $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
-        if ($adminCount === 0) {
-            $promote = $pdo->prepare('UPDATE users SET role = :role WHERE id = :id');
-            $promote->execute([
-                ':role' => 'admin',
-                ':id' => $u['id'],
-            ]);
-            $u['role'] = 'admin';
-        }
-
-        $_SESSION['user_id'] = $u['id'];
-        redirect('/index.php');
+    if ($limitData['count'] >= 5) {
+        $error = "Preveč poskusov prijave. Poskusite znova čez 15 minut.";
     } else {
-        $error = "Neveljavni podatki ali blokiran račun.";
+        $username = trim(isset($_POST['identifier']) ? $_POST['identifier'] : '');
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
+
+        $pdo = Database::connect();
+        $u = null;
+
+        // Attempt to fetch user first
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE (username = :u OR email = :u) AND active = 1');
+        $stmt->execute([':u' => $username]);
+        $u = $stmt->fetch();
+
+        if ($u && password_verify($password, $u['pass_hash'])) {
+            // Success - clear rate limit
+            if (file_exists($limitFile)) unlink($limitFile);
+
+            // Auto-promote first user to admin logic
+            $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+            if ($adminCount === 0) {
+                $promote = $pdo->prepare('UPDATE users SET role = :role WHERE id = :id');
+                $promote->execute([
+                    ':role' => 'admin',
+                    ':id' => $u['id'],
+                ]);
+                $u['role'] = 'admin';
+            }
+
+            $_SESSION['user_id'] = $u['id'];
+            redirect('/index.php');
+        } else {
+            // Failure - increment attempts
+            $limitData['count']++;
+            file_put_contents($limitFile, json_encode($limitData));
+            $error = "Neveljavni podatki ali blokiran račun.";
+        }
     }
 }
 
