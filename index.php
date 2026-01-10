@@ -56,9 +56,7 @@ if ($sortMode === 'taken_desc') {
 }
 
 $whereClause = implode(' AND ', $where);
-$sql = "SELECT posts.*, users.username,
-        (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) as like_count,
-        (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count
+$sql = "SELECT posts.*, users.username
         FROM posts LEFT JOIN users ON posts.user_id = users.id
         WHERE {$whereClause}
         ORDER BY {$orderBy} LIMIT :limit OFFSET :offset";
@@ -71,6 +69,32 @@ $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $posts = $stmt->fetchAll();
+
+// Optimization: Eager load counts to avoid N+1 subqueries
+if ($posts) {
+    $ids = array_column($posts, 'id');
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+    // Fetch likes
+    $sqlLikes = "SELECT post_id, COUNT(*) as count FROM likes WHERE post_id IN ($placeholders) GROUP BY post_id";
+    $stmtLikes = $pdo->prepare($sqlLikes);
+    $stmtLikes->execute($ids);
+    $likeCounts = $stmtLikes->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // Fetch comments
+    $sqlComments = "SELECT post_id, COUNT(*) as count FROM comments WHERE post_id IN ($placeholders) GROUP BY post_id";
+    $stmtComments = $pdo->prepare($sqlComments);
+    $stmtComments->execute($ids);
+    $commentCounts = $stmtComments->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // Merge back
+    foreach ($posts as &$post) {
+        $id = $post['id'];
+        $post['like_count'] = $likeCounts[$id] ?? 0;
+        $post['comment_count'] = $commentCounts[$id] ?? 0;
+    }
+    unset($post);
+}
 
 // Grouping Logic
 function time_group_label(int $timestamp): string {
