@@ -10,6 +10,8 @@ header('Content-Type: application/json');
 $user = Auth::requireLogin();
 $pdo = Database::connect();
 
+verify_csrf();
+
 $input = json_decode(file_get_contents('php://input'), true);
 
 $mediaId = $input['media_id'] ?? null;

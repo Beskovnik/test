@@ -19,10 +19,7 @@ if (!isset($input['post_id'])) {
 
 // CSRF Check
 // We verify CSRF to prevent external automated spamming of view counts
-$token = $input['csrf_token'] ?? '';
-if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
-    Response::error('CSRF Error', 'CSRF', 403);
-}
+verify_csrf();
 
 $postId = (int)$input['post_id'];
 $pdo = Database::connect();

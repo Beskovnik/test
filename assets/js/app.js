@@ -150,8 +150,11 @@
             try {
                 const res = await fetch('/api/view.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({post_id: postId})
                 });
                 const data = await res.json();
                 if (data.ok && data.views && viewCountEl) {
@@ -170,8 +173,11 @@
                 try {
                     const res = await fetch('/api/like.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({post_id: postId, csrf_token: csrfToken})
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({post_id: postId})
                     });
                     const data = await res.json();
                     if (data.ok) {
@@ -196,11 +202,13 @@
                 try {
                     const res = await fetch('/api/media/visibility.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
                         body: JSON.stringify({
                             media_id: postId,
-                            visibility: this.value,
-                            csrf_token: csrfToken
+                            visibility: this.value
                         })
                     });
                     const data = await res.json();
@@ -230,8 +238,11 @@
                 try {
                     const res = await fetch('/api/media/generate_public_link.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({id: postId, csrf_token: csrfToken})
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify({id: postId})
                     });
                     const data = await res.json();
 
@@ -310,8 +321,11 @@
                 try {
                     const res = await fetch('/api/post_delete.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({id: id, csrf_token: csrfToken})
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify({id: id})
                     });
                     const data = await res.json();
                     if (data.ok) {
@@ -385,8 +399,11 @@
                 try {
                     const res = await fetch('/api/comment_add.php', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({post_id: postId, body, csrf_token: csrfToken})
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify({post_id: postId, body})
                     });
                     const data = await res.json();
                     if (data.ok) {
@@ -419,7 +436,10 @@
              try {
                 const res = await fetch('/api/share/create.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
                     body: JSON.stringify({
                         title: title,
                         media_ids: mediaIds

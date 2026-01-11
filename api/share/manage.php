@@ -9,6 +9,9 @@ header('Content-Type: application/json');
 $user = Auth::requireLogin();
 $pdo = \App\Database::connect();
 
+// CSRF check
+verify_csrf();
+
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? ''; // 'disable', 'delete'
 $shareId = $input['share_id'] ?? null;
