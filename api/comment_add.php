@@ -14,10 +14,7 @@ if (empty($input['post_id']) || empty($input['body'])) {
     Response::error('Missing data');
 }
 
-$token = $input['csrf_token'] ?? '';
-if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
-    Response::error('CSRF Error', 'CSRF', 403);
-}
+verify_csrf();
 
 $postId = (int)$input['post_id'];
 $body = trim($input['body']);

@@ -148,9 +148,13 @@ async function revokePublicLink(id) {
     if (!confirm('Ali želite preklicati javno povezavo? Medij bo postal zaseben.')) return;
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         const res = await fetch('/api/media/visibility.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
             body: JSON.stringify({media_id: id, visibility: 'private'})
         });
         const data = await res.json();
@@ -168,9 +172,13 @@ async function toggleShare(id, action) {
     if (!confirm('Ste prepričani?')) return;
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         const res = await fetch('/api/share/manage.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
             body: JSON.stringify({share_id: id, action: action})
         });
         const data = await res.json();

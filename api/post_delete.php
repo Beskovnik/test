@@ -14,10 +14,7 @@ if (empty($input['id'])) {
     Response::error('Missing ID');
 }
 
-$token = $input['csrf_token'] ?? '';
-if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
-    Response::error('CSRF Error', 'CSRF', 403);
-}
+verify_csrf();
 
 $id = (int)$input['id'];
 $pdo = Database::connect();
