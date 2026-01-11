@@ -96,6 +96,9 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
         <?php echo $mediaHtml; ?>
     </div>
     <div class="info-panel">
+        <a href="/index.php" class="button ghost small" style="margin-bottom: 1rem; align-self: flex-start; display: inline-flex; align-items: center; gap: 0.5rem; padding-left: 0; color: var(--text-muted); transition: color 0.2s;">
+            <span class="material-icons" style="font-size: 1.2rem;">arrow_back</span> Nazaj v galerijo
+        </a>
         <h1 style="font-size:1.5rem; margin-bottom:0.5rem;"><?php echo htmlspecialchars($title); ?></h1>
         <p class="meta" style="color:var(--muted); margin-bottom:1rem;">Objavil <?php echo htmlspecialchars($post['username'] ?? 'Anon'); ?></p>
 
@@ -138,11 +141,11 @@ $shareUrl = '/view.php?s=' . urlencode($post['share_token'] ?? '');
                         <label style="font-size:0.8rem; color:var(--muted); display:block; margin-bottom:0.25rem;">Javni URL:</label>
                         <div style="display:flex; gap:0.5rem;">
                             <input type="text" readonly value="<?php echo htmlspecialchars($publicLink); ?>" style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:var(--text); padding:0.5rem; border-radius:0.5rem; font-size:0.9rem;">
-                            <button id="copyPublicLinkBtn" class="button icon-only" title="Kopiraj"><span class="material-icons">content_copy</span></button>
+                            <button id="copyPublicLinkBtn" class="button icon-only" title="Kopiraj" aria-label="Kopiraj povezavo"><span class="material-icons">content_copy</span></button>
                         </div>
                     </div>
 
-                    <button class="button danger small icon-only js-delete-btn" data-id="<?php echo $post['id']; ?>" title="Izbriši" style="align-self: flex-end;"><span class="material-icons">delete</span></button>
+                    <button class="button danger small icon-only js-delete-btn" data-id="<?php echo $post['id']; ?>" title="Izbriši" aria-label="Izbriši objavo" style="align-self: flex-end;"><span class="material-icons">delete</span></button>
                 </div>
             <?php else: ?>
                  <button class="button ghost js-share-btn" data-url="<?php echo $shareUrl; ?>">Deli 🔗</button>
