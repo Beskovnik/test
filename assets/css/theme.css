@@ -279,6 +279,35 @@ input, select, textarea {
 }
 label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted); }
 
+/* Password Toggle Wrapper */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+.password-wrapper input {
+    margin-bottom: 0;
+    padding-right: 2.8rem;
+}
+.password-toggle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0 8px 8px 0;
+    transition: color 0.2s;
+}
+.password-toggle:hover { color: var(--text-main); }
+.password-toggle:focus { outline: none; color: var(--accent); }
+
 
 /* --- RESPONSIVENESS --- */
 
