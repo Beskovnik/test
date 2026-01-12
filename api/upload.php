@@ -196,6 +196,26 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
         app_log("Detected MIME for $originalName: $realMime");
     }
 
+    // Sentinel Security Fix: Enforce extension based on MIME type
+    // This prevents polyglot attacks where a file is a valid image but has a malicious extension (e.g. .php.jpg)
+    // or an extension that bypasses the blocklist (e.g. .php5).
+    $mimeToExt = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+        'video/mp4' => 'mp4',
+        'video/webm' => 'webm',
+        'video/quicktime' => 'mov',
+        'video/x-matroska' => 'mkv',
+    ];
+
+    if (!isset($mimeToExt[$realMime])) {
+        send_error_response('Unsupported media type', 'UNSUPPORTED_TYPE');
+    }
+
+    $safeExt = $mimeToExt[$realMime];
+
     $isImage = str_starts_with($realMime, 'image/');
     $isVideo = str_starts_with($realMime, 'video/');
 
@@ -205,13 +225,12 @@ function processFile($sourcePath, $originalName, $fileSize, $user) {
     } elseif ($isVideo) {
         if (!in_array($realMime, $allowedVideos, true)) send_error_response('Invalid video format', 'INVALID_FORMAT');
         if ($fileSize > $maxVideoBytes) send_error_response('Video too large', 'TOO_LARGE');
-    } else {
-        send_error_response('Unsupported media type', 'UNSUPPORTED_TYPE');
     }
 
     // Destinations
     $random = bin2hex(random_bytes(16));
-    $filename = $random . '.' . $ext;
+    // Use the safe extension derived from MIME type, NOT the user-provided one
+    $filename = $random . '.' . $safeExt;
 
     // Paths
     $uploadDir = __DIR__ . '/../uploads';
